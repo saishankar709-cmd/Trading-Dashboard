@@ -125,17 +125,34 @@ class TradingDashboard(QMainWindow):
         # TREND LINE BUTTON
         # =================================================
 
-        self.trend_button = QPushButton("↗ Trend")
-        self.trend_button.setCheckable(True)
-        self.trend_button.setFixedHeight(27)
+        # =================================================
+# DRAWING TOOLS
+# =================================================
 
-        toolbar_layout.addWidget(self.trend_button)
+        self.drawing_buttons = {}
 
-        self.trend_button.clicked.connect(
-            self.toggle_trend_mode
+        drawing_tools = [
+        ("trend", "↗ Trend"),
+        ("horizontal", "━ H-Line"),
+        ("vertical", "│ V-Line"),
+        ("rectangle", "▭ Rectangle"),
+    ]
+
+    for tool_name, label in drawing_tools:
+        button = QPushButton(label)
+        button.setFixedHeight(27)
+        button.setMinimumWidth(72)
+
+        toolbar_layout.addWidget(button)
+
+        self.drawing_buttons[tool_name] = button
+
+        button.clicked.connect(
+            lambda checked=False, tool=tool_name:
+            self.activate_drawing_tool(tool)
         )
 
-        toolbar_layout.addSpacing(10)
+    toolbar_layout.addSpacing(10)
 
         self.status_label = QLabel("Ready")
         toolbar_layout.addWidget(self.status_label)
@@ -498,46 +515,54 @@ class TradingDashboard(QMainWindow):
     # TIMEFRAME SELECTION
     # =====================================================
 
-    def change_timeframe(self, timeframe):
+   def change_timeframe(self, timeframe):
 
-        self.current_timeframe = timeframe
+    self.current_timeframe = timeframe
 
-        for label, button in self.timeframe_buttons.items():
-            button.setChecked(
-                label == timeframe
-            )
+    for label, button in self.timeframe_buttons.items():
+        button.setChecked(
+            label == timeframe
+        )
 
-        # Changing timeframe should not leave us
-        # stuck in drawing mode.
-        self.trend_button.setChecked(False)
-
-        if self.chart_ready and self.current_sheet:
-            self.load_sheet(
-                self.current_sheet
-            )
+    if self.chart_ready and self.current_sheet:
+        self.load_sheet(
+            self.current_sheet
+        )
 
     # =====================================================
     # TREND LINE
     # =====================================================
 
-    def toggle_trend_mode(self):
+   # =====================================================
+# DRAWING TOOLS
+# =====================================================
 
-        enabled = self.trend_button.isChecked()
+def activate_drawing_tool(self, tool):
 
-        self.browser.page().runJavaScript(
-            f"setTrendMode({str(enabled).lower()});"
-        )
+    if not self.chart_ready:
+        return
 
-        if enabled:
-            self.status_label.setText(
-                "Trend Line: click first point, "
-                "then second point"
-            )
-        else:
-            self.status_label.setText(
-                f"{self.current_sheet} • "
-                f"{self.current_timeframe}"
-            )
+    labels = {
+        "trend": "Trend Line",
+        "horizontal": "Horizontal Line",
+        "vertical": "Vertical Line",
+        "rectangle": "Rectangle",
+    }
+
+    label = labels.get(
+        tool,
+        "Drawing",
+    )
+
+    self.status_label.setText(
+        f"{label}: click on chart"
+    )
+
+    self.browser.page().runJavaScript(
+        f"setDrawingModeFromPython("
+        f"{json.dumps(tool)}"
+        f");"
+    )
 
     # =====================================================
     # CHART
