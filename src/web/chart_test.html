@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <style>
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #ffffff;
+        }
+
+        #chart {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+        }
+
+        #drawingCanvas {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+    </style>
+
+    <script src="lightweight-charts.js"></script>
+
+</head>
+
+
+<body>
+
+<div id="chart">
+
+    <canvas id="drawingCanvas"></canvas>
+
+</div>
+
+
+<script>
+
+
+// =========================================================
+// CHART
+// =========================================================
+
+const chartContainer =
+    document.getElementById("chart");
+
+const drawingCanvas =
+    document.getElementById("drawingCanvas");
+
+const drawingContext =
+    drawingCanvas.getContext("2d");
+
+
+const chart =
+    LightweightCharts.createChart(
+        chartContainer,
+        {
+            width: chartContainer.clientWidth,
+
+            height: chartContainer.clientHeight,
+
+            layout: {
+                background: {
+                    color: "#ffffff"
+                },
+
+                textColor: "#333333"
+            },
+
+            grid: {
+                vertLines: {
+                    color: "#eeeeee"
+                },
+
+                horzLines: {
+                    color: "#eeeeee"
+                }
+            },
+
+            rightPriceScale: {
+
+                visible: true,
+
+                borderColor: "#dddddd",
+
+                autoScale: true,
+
+                scaleMargins: {
+                    top: 0.10,
+                    bottom: 0.10
+                }
+            },
+
+            timeScale: {
+
+                borderColor: "#dddddd",
+
+                timeVisible: true,
+
+                secondsVisible: false
+            },
+
+            crosshair: {
+                mode:
+                    LightweightCharts
+                    .CrosshairMode
+                    .Normal
+            }
+        }
+    );
+
+
+// =========================================================
+// CANDLE SERIES
+// =========================================================
+
+const candleSeries =
+    chart.addSeries(
+        LightweightCharts.CandlestickSeries,
+        {
+            upColor: "#26a69a",
+
+            downColor: "#ef5350",
+
+            borderUpColor: "#26a69a",
+
+            borderDownColor: "#ef5350",
+
+            wickUpColor: "#26a69a",
+
+            wickDownColor: "#ef5350",
+
+            lastValueVisible: false,
+
+            priceLineVisible: false
+        }
+    );
+
+
+// =========================================================
+// DRAWING STATE
+// =========================================================
+
+let trendMode = false;
+
+let drawingPoints = [];
+
+let trendLines = [];
+
+
+// =========================================================
+// CANVAS SIZE
+// =========================================================
+
+function resizeDrawingCanvas() {
+
+    const width =
+        chartContainer.clientWidth;
+
+    const height =
+        chartContainer.clientHeight;
+
+    const ratio =
+        window.devicePixelRatio || 1;
+
+    drawingCanvas.width =
+        width * ratio;
+
+    drawingCanvas.height =
+        height * ratio;
+
+    drawingCanvas.style.width =
+        width + "px";
+
+    drawingCanvas.style.height =
+        height + "px";
+
+    drawingContext.setTransform(
+        ratio,
+        0,
+        0,
+        ratio,
+        0,
+        0
+    );
+
+    redrawDrawings();
+}
+
+
+// =========================================================
+// CONVERT MARKET COORDINATES
+// =========================================================
+
+function pointToScreen(point) {
+
+    const x =
+        chart.timeScale()
+            .timeToCoordinate(
+                point.time
+            );
+
+    const y =
+        candleSeries
+            .priceToCoordinate(
+                point.price
+            );
+
+    if (
+        x === null ||
+        x === undefined ||
+        y === null ||
+        y === undefined
+    ) {
+        return null;
+    }
+
+    return {
+        x: x,
+        y: y
+    };
+}
+
+
+// =========================================================
+// DRAW TREND LINES
+// =========================================================
+
+function redrawDrawings() {
+
+    const width =
+        chartContainer.clientWidth;
+
+    const height =
+        chartContainer.clientHeight;
+
+    drawingContext.clearRect(
+        0,
+        0,
+        width,
+        height
+    );
+
+    drawingContext.lineWidth = 2;
+
+    drawingContext.strokeStyle =
+        "#1565c0";
+
+    for (
+        const line of trendLines
+    ) {
+
+        const first =
+            pointToScreen(
+                line.first
+            );
+
+        const second =
+            pointToScreen(
+                line.second
+            );
+
+        if (!first || !second) {
+            continue;
+        }
+
+        drawingContext.beginPath();
+
+        drawingContext.moveTo(
+            first.x,
+            first.y
+        );
+
+        drawingContext.lineTo(
+            second.x,
+            second.y
+        );
+
+        drawingContext.stroke();
+
+        // End-point circles
+
+        drawingContext.fillStyle =
+            "#1565c0";
+
+        drawingContext.beginPath();
+
+        drawingContext.arc(
+            first.x,
+            first.y,
+            4,
+            0,
+            Math.PI * 2
+        );
+
+        drawingContext.fill();
+
+        drawingContext.beginPath();
+
+        drawingContext.arc(
+            second.x,
+            second.y,
+            4,
+            0,
+            Math.PI * 2
+        );
+
+        drawingContext.fill();
+    }
+
+    // Draw temporary first point.
+
+    if (drawingPoints.length === 1) {
+
+        const point =
+            pointToScreen(
+                drawingPoints[0]
+            );
+
+        if (point) {
+
+            drawingContext.fillStyle =
+                "#1565c0";
+
+            drawingContext.beginPath();
+
+            drawingContext.arc(
+                point.x,
+                point.y,
+                5,
+                0,
+                Math.PI * 2
+            );
+
+            drawingContext.fill();
+        }
+    }
+}
+
+
+// =========================================================
+// GET MARKET POINT FROM MOUSE
+// =========================================================
+
+function getMarketPoint(
+    mouseEvent
+) {
+
+    const rect =
+        chartContainer
+            .getBoundingClientRect();
+
+    const x =
+        mouseEvent.clientX -
+        rect.left;
+
+    const y =
+        mouseEvent.clientY -
+        rect.top;
+
+    const time =
+        chart.timeScale()
+            .coordinateToTime(x);
+
+    const price =
+        candleSeries
+            .coordinateToPrice(y);
+
+    if (
+        time === null ||
+        time === undefined ||
+        price === null ||
+        price === undefined
+    ) {
+        return null;
+    }
+
+    return {
+        time: time,
+        price: price
+    };
+}
+
+
+// =========================================================
+// DRAWING INPUT
+// =========================================================
+
+chartContainer.addEventListener(
+    "click",
+    function(event) {
+
+        if (!trendMode) {
+            return;
+        }
+
+        const point =
+            getMarketPoint(event);
+
+        if (!point) {
+            return;
+        }
+
+        drawingPoints.push(point);
+
+        if (
+            drawingPoints.length === 2
+        ) {
+
+            trendLines.push({
+                first: drawingPoints[0],
+                second: drawingPoints[1]
+            });
+
+            drawingPoints = [];
+
+            redrawDrawings();
+
+            // Stay in Trend mode so another
+            // line can be created.
+
+            return;
+        }
+
+        redrawDrawings();
+    }
+);
+
+
+// =========================================================
+// TREND MODE FROM PYTHON
+// =========================================================
+
+function setTrendMode(enabled) {
+
+    trendMode = enabled;
+
+    drawingPoints = [];
+
+    if (enabled) {
+
+        chartContainer.style.cursor =
+            "crosshair";
+
+    } else {
+
+        chartContainer.style.cursor =
+            "default";
+    }
+
+    redrawDrawings();
+}
+
+
+// =========================================================
+// CHART DATA
+// =========================================================
+
+function setChartData(
+    data,
+    sheetName
+) {
+
+    candleSeries.setData(data);
+
+    chart.priceScale("right")
+        .applyOptions({
+            autoScale: true
+        });
+
+    chart.timeScale()
+        .fitContent();
+
+    requestAnimationFrame(
+        function() {
+
+            chart.priceScale("right")
+                .applyOptions({
+                    autoScale: true
+                });
+
+            chart.timeScale()
+                .fitContent();
+
+            redrawDrawings();
+        }
+    );
+}
+
+
+// =========================================================
+// CLEAR CHART
+// =========================================================
+
+function clearChartData() {
+
+    candleSeries.setData([]);
+
+    trendLines = [];
+
+    drawingPoints = [];
+
+    chart.priceScale("right")
+        .applyOptions({
+            autoScale: true
+        });
+
+    chart.timeScale()
+        .fitContent();
+
+    redrawDrawings();
+}
+
+function setTimeframe(timeframe) {
+    // Timeframe aggregation is performed by Python.
+    // This function exists so ChartPanel can restore
+    // panel state when the chart is created.
+}
+
+// =========================================================
+// CHART RESIZE
+// =========================================================
+
+window.addEventListener(
+    "resize",
+    resizeDrawingCanvas
+);
+
+
+const resizeObserver =
+    new ResizeObserver(
+        function() {
+
+            chart.resize(
+                chartContainer.clientWidth,
+                chartContainer.clientHeight
+            );
+
+            resizeDrawingCanvas();
+        }
+    );
+
+
+resizeObserver.observe(
+    chartContainer
+);
+
+
+// =========================================================
+// REDRAW WHEN USER ZOOMS / SCROLLS
+// =========================================================
+
+chart.timeScale()
+    .subscribeVisibleLogicalRangeChange(
+        function() {
+            redrawDrawings();
+        }
+    );
+
+
+// =========================================================
+// INITIAL CANVAS
+// =========================================================
+
+resizeDrawingCanvas();
+
+
+</script>
+
+</body>
+
+</html>
