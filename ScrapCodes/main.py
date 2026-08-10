@@ -4,7 +4,15 @@ from pathlib import Path
 
 import pandas as pd
 
-from PySide6.QtCore import QDate, QUrl, Qt, Signal
+from PySide6.QtWebChannel import QWebChannel
+from PySide6.QtCore import (
+    QDate,
+    QUrl,
+    Qt,
+    Signal,
+    QObject,
+    Slot,
+)
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -23,6 +31,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWebChannel import QWebChannel
 
 from data.excel_loader import load_sheet
 
@@ -44,7 +53,21 @@ TIMEFRAMES = [
     ("1D", 1440),
 ]
 
+class ChartBridge(QObject):
 
+    clicked = Signal()
+
+    @Slot()
+    def chart_clicked(self):
+        self.clicked.emit()
+
+class ChartBridge(QObject):
+
+    clicked = Signal()
+
+    @Slot()
+    def chart_clicked(self):
+        self.clicked.emit()
 # =========================================================
 # CLICKABLE / MOUSE-AWARE CHART
 # =========================================================
@@ -52,32 +75,29 @@ class ClickableChartView(QWebEngineView):
 
     clicked = Signal()
     mouse_moved = Signal(int, int)
+    mouse_left = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setMouseTracking(True)
 
     def mousePressEvent(self, event):
-
         self.clicked.emit()
-
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
-
-        position = event.position()
+        pos = event.position()
 
         self.mouse_moved.emit(
-            int(position.x()),
-            int(position.y())
+            int(pos.x()),
+            int(pos.y())
         )
 
         super().mouseMoveEvent(event)
 
-    # -----------------------------------------------------
-    # MOUSE LEAVE
-    # -----------------------------------------------------
-
     def leaveEvent(self, event):
-
         self.mouse_left.emit()
-
         super().leaveEvent(event)
 
 
@@ -213,15 +233,29 @@ class ChartSlot:
         # -------------------------------------------------
         # CHART
         # -------------------------------------------------
-
         self.browser = ClickableChartView()
 
         self.browser.setContextMenuPolicy(
             Qt.NoContextMenu
         )
+             
+        self.bridge = ChartBridge()
 
-        self.browser.clicked.connect(
-            self.select
+        self.channel = QWebChannel(
+            self.browser.page()
+        )
+
+        self.channel.registerObject(
+            "chartBridge",
+            self.bridge
+        )
+
+        self.browser.page().setWebChannel(
+            self.channel
+        )
+
+        self.browser.setContextMenuPolicy(
+            Qt.NoContextMenu
         )
 
         self.browser.mouse_moved.connect(
@@ -312,9 +346,11 @@ class ChartSlot:
 
     def select(self):
 
+        print(f"[CLICK] ChartSlot {self.slot_id + 1}")
+
         self.parent.set_active_slot(
-            self.slot_id
-        )
+        self.slot_id
+    )
 
     # =====================================================
     # MOUSE MOVED
@@ -427,6 +463,9 @@ class ChartSlot:
         x,
         y
     )
+    
+    def activate(self):
+        self.parent.set_active_slot(self.slot_id)
 # =========================================================
 # MAIN WINDOW
 # =========================================================
@@ -1276,6 +1315,10 @@ class TradingDashboard(
         self.active_slot_id = (
             slot_id
         )
+        
+        print(
+            f"[ACTIVE] ChartSlot {self.active_slot_id + 1}"
+        )
 
         for slot in self.chart_slots:
 
@@ -1285,6 +1328,11 @@ class TradingDashboard(
             )
 
         slot = self.active_slot()
+
+        slot = self.active_slot()
+        
+        if not slot.chart_ready:
+            return
 
         self.current_timeframe = (
             slot.timeframe
@@ -1758,6 +1806,10 @@ class TradingDashboard(
     ):
 
         slot = self.active_slot()
+        print(
+            f"[DRAWING] Chart {slot.slot_id + 1} -> {tool}, "
+            f"ready={slot.chart_ready}"
+        )
 
         if not slot.chart_ready:
             return
