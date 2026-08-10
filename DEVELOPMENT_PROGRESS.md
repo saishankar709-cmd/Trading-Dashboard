@@ -1,630 +1,612 @@
-# Trading Dashboard — Development Progress
+Trading Dashboard — Development Progress Notes
+1. Project foundation
 
-## Project Status
+Project: Trading-Dashboard
 
-**Current Status:** Layout module under active development  
-**Last Working Baseline:** GitHub-synced project copy  
-**Current Priority:** Stabilize multi-layout architecture before proceeding to Custom Layout Mapping / Pop-Out
+GitHub repository: Trading-Dashboard
 
----
+Local project:
 
-# 1. Project Foundation
+D:\Coding\Trading-Dashboard
 
-## Completed
+Python virtual environment:
 
-- Python/PySide6 desktop application established.
-- `QWebEngineView` integrated for web-based chart rendering.
-- Trading chart implemented using Lightweight Charts.
-- Local Lightweight Charts JavaScript file integrated.
-- Project structure established:
+D:\Coding\Trading-Dashboard\.venv
 
-```text
+The application is being developed as a PySide6 desktop trading dashboard with embedded HTML/JavaScript charts.
+
+2. Current architecture
+
+The project currently has three important layers:
+
+Python / PySide6
+        │
+        ├── Trading Dashboard window
+        ├── ChartSlot instances
+        ├── chart selection
+        ├── timeframe handling
+        ├── Excel/data loading
+        └── QWebChannel bridge
+                │
+                ▼
+        HTML / JavaScript
+                │
+                ├── Lightweight Charts
+                ├── candle rendering
+                ├── crosshair
+                ├── drawing tools
+                └── drawing interaction
+3. Folder structure
+
+The local structure we've been working with is approximately:
+
 Trading-Dashboard/
 │
+├── .venv/
+│
 ├── src/
+│   │
 │   ├── main.py
+│   ├── main_backup.py
+│   │
+│   ├── data/
+│   │   └── excel_loader.py
 │   │
 │   └── web/
+│       │
 │       ├── chart_test.html
+│       ├── chart_test_backup.html
 │       └── lightweight-charts.js
 │
 └── ...
-2. Chart Module
-Completed
-Candlestick chart implemented.
-Closing-price line removed.
-Candlestick OHLC data displayed.
-Chart zooming/panning implemented through Lightweight Charts.
-Local Lightweight Charts library integrated.
-Chart loads through PySide6/QWebEngineView.
-3. Timeframe Module
-Completed
-
-Timeframe functionality has been implemented for:
-
-1 minute
-3 minutes
-5 minutes
-10 minutes
-15 minutes
-30 minutes
-1 hour
-4 hours
-1 day
-
-The architecture supports changing the timeframe of the active chart.
-
-Remaining Work
-
-In multi-layout mode:
-
-Each chart must be independently changeable.
-Selecting a timeframe must affect only the selected/active chart.
-Timeframe state must remain associated with its chart.
-Switching layouts must not unexpectedly reset chart timeframes.
-4. Drawing Module
-Implemented Drawing Types
-Trend Line
-Horizontal Line
-Vertical Line
-Rectangle
-Drawing Functionality Implemented
-Drawing creation.
-Drawing selection.
-Drawing movement.
-Drawing resizing.
-Drawing deletion.
-Drawing color functionality.
-Drawing state stored within chart instances.
-Drawing interaction across chart coordinates implemented.
-Known Issues
-
-The drawing module is not yet fully stable in multi-layout mode.
-
-Known/observed problems:
-
-Drawing behavior is inconsistent between multiple charts.
-Drawing controls currently appear inside individual chart instances.
-Drawing controls need to be centralized into the main dashboard.
-Drawings must operate only on the currently active chart.
-Each chart must maintain its own independent drawing collection.
-Drawing state must survive layout changes.
-Drawing interaction must not affect another chart.
-5. Drawings Menu
-Design Requirement
-
-Drawing tools should NOT appear as permanent controls inside every chart.
-
-Required design:
-
-Drawings ▼
-│
-├── Trend Line
-├── Horizontal Line
-├── Vertical Line
-└── Rectangle
-
-The selected drawing tool must apply only to the currently active chart.
-
-Current Status
-
-Not completed.
-
-The current implementation still contains drawing-related UI inside the chart HTML.
-
-This must be removed/refactored.
-
-6. Multi-Layout Module
-Implemented
-
-Layout engine has been introduced.
-
-Supported layout concepts include:
-
-1 chart
-2 charts
-3 charts
-4 charts
-6 charts
-8 charts
-
-Chart slots were introduced so that multiple chart instances can exist simultaneously.
-
-The architecture includes the concept of:
-
-ChartSlot
-
-Each chart slot is intended to maintain its own:
-
-Symbol
-Sheet
-Timeframe
-Chart instance
-Drawings
-Chart state
-7. Current Multi-Layout Problems
-IMPORTANT
-
-Multi-layout functionality is NOT currently considered complete or stable.
-
-The following issues remain unresolved.
-
-7.1 Mouse / Crosshair Synchronization
-
-Required behavior:
-
-Mouse over Chart 1
-        ↓
-Crosshair position
-        ↓
-Chart 2
-Chart 3
-Chart 4
-...
-
-The crosshair should synchronize based on market time/data rather than simply copying screen coordinates.
-
-Current Status
-
-NOT WORKING CORRECTLY.
-
-Crosshair synchronization has not been successfully completed.
-
-8. Independent Timeframe Per Chart
-
-Required behavior:
-
-Chart 1 → 1 minute
-Chart 2 → 5 minute
-Chart 3 → 15 minute
-Chart 4 → 1 day
-
-Changing Chart 3 to 15 minutes must not modify Charts 1, 2 or 4.
-
-Current Status
-
-Partially implemented in the Python architecture, but not yet verified/stable in the complete multi-layout environment.
-
-Needs full testing.
-
-9. Independent Drawings Per Chart
-
-Required behavior:
-
-Chart 1
- └── Trend Line A
-
-Chart 2
- └── Rectangle B
-
-Chart 3
- └── Horizontal Line C
-
-Drawings must remain associated with their respective chart.
-
-Current Status
-
-Drawing state is implemented within individual HTML chart instances, but multi-layout interaction is not yet fully stable.
-
-Needs architectural cleanup and testing.
-
-10. Active Chart Selection
-
-Required behavior:
-
-When a chart is clicked:
-
-Chart 2
-   ↓
-becomes ACTIVE
-   ↓
-Toolbar controls operate on Chart 2
-
-Therefore:
-
-Timeframe
-Drawings
-Symbol
-Chart options
-
-must operate on the selected chart.
-
-Current Status
-
-Active chart architecture exists.
-
-However, recent changes introduced an issue involving:
-
-ClickableChartView.mouse_left
-
-which caused:
-
-AttributeError:
-'ClickableChartView' object has no attribute 'mouse_left'
-
-A correction was attempted using the existing clicked signal.
-
-This needs to be re-tested from a clean GitHub checkpoint tomorrow.
-
-11. Drawing Box Problem
-
-Current behavior:
-
-Each chart instance can display its own drawing control box.
-
-This is NOT the desired design.
-
-Required Design
-
-Only the main dashboard should contain:
-
-Drawings ▼
-
-The chart itself should contain only the chart.
-
-No permanent drawing control box should appear on every chart.
-
-Current Status
-
-NOT COMPLETED.
-
-12. Layout State Persistence
-
-Required behavior:
-
-If:
-
-Chart 1 → NIFTY → 1m
-Chart 2 → BANKNIFTY → 5m
-Chart 3 → SENSEX → 15m
-
-then changing:
-
-1 layout → 4 layout → 2 layout → 4 layout
-
-should preserve the chart configuration.
-
-Each slot should retain its:
-
-Symbol
-Timeframe
-Drawings
-Chart settings
-Data state
-Current Status
-
-NOT YET VERIFIED.
-
-13. Custom Layout Mapping
-Planned
-
-After basic layouts are stable, implement custom layout mapping.
-
-Example:
-
-Layout A
-
-┌──────────────────────┬───────────┐
-│                      │           │
-│       Chart 1        │ Chart 2   │
-│                      │           │
-├──────────────┬───────┴───────────┤
-│   Chart 3    │      Chart 4      │
-└──────────────┴────────────────────┘
-
-User should be able to define which chart occupies which position.
-
-Status
-
-NOT STARTED.
-
-14. Pop-Out Chart
-Planned Requirement
-
-From a multi-chart layout:
-
-┌──────────────┬──────────────┐
-│   Chart 1    │   Chart 2    │
-├──────────────┼──────────────┤
-│   Chart 3    │   Chart 4    │
-└──────────────┴──────────────┘
-
-User should be able to select one chart and choose:
-
-Pop Out
-
-Result:
-
-┌─────────────────────────────────────┐
-│                                     │
-│             Chart 3                 │
-│                                     │
-│       Full-size analysis view       │
-│                                     │
-└─────────────────────────────────────┘
-
-The chart must retain:
-
-Symbol
-Timeframe
-Drawings
-Chart settings
-Current data
-Status
-
-NOT STARTED.
-
-15. Planned Chart Options
-
-Every chart in every layout should eventually support the same chart controls.
-
-Required capabilities include:
-
-Timeframe
-Drawings
-Drawing color
-Chart type
-Zoom
-Pan
-Crosshair
-Indicators
-Price scale options
-Chart settings
-Symbol selection
-Data visibility controls
-
-These controls must operate on the active chart.
-
-Status
-
-PARTIALLY IMPLEMENTED.
-
-16. Testing Status
-
-Basic single-chart functionality has previously been tested successfully.
-
-However, the current multi-layout implementation has NOT passed complete integration testing.
-
-Required Testing Matrix
-Layouts
- 1 chart
- 2 charts
- 3 charts
- 4 charts
- 6 charts
- 8 charts
-Timeframes
-
-Each visible chart must independently support:
-
- 1m
- 3m
- 5m
- 10m
- 15m
- 30m
- 1h
- 4h
- 1D
-Drawings
-
-For every chart:
-
- Trend line
- Horizontal line
- Vertical line
- Rectangle
- Select
- Move
- Resize
- Delete
- Change color
- Create multiple drawings
-Layout State
- Change timeframe
- Add drawing
- Switch layout
- Return to previous layout
- Verify state retained
-Crosshair
- Chart 1 → Chart 2
- Chart 2 → Chart 1
- Chart 1 → all visible charts
- Different timeframes
- Different symbols
- Different chart sizes
-17. Current Known Errors
-
-The latest local execution produced:
-
-AttributeError:
-'ClickableChartView' object has no attribute 'mouse_left'
-
-Location:
-
+Important files
 src/main.py
 
-The application was attempting to connect:
+Main PySide6 application.
 
-self.browser.mouse_left.connect(...)
+Responsible for:
 
-while the current ClickableChartView implementation does not expose that signal.
+Main window
+Dashboard layout
+Multiple chart slots
+Chart selection
+Active chart highlighting
+Timeframe controls
+Sheet selection
+Data loading
+QWebEngineView
+QWebChannel
+Python ↔ JavaScript communication
+Crosshair synchronization
+src/web/chart_test.html
 
-A correction using the existing clicked signal was attempted.
+Main chart implementation.
 
-This must be verified from the latest clean GitHub copy before proceeding.
+Responsible for:
 
-18. Important Development Rule Going Forward
+Lightweight Charts
+Candlestick data
+Crosshair
+Drawing tools
+Rectangle
+Trend line
+Horizontal line
+Vertical line
+Drawing selection
+Drawing movement
+Drawing resizing
+Drawing deletion
+JavaScript-side chart interaction
+src/web/lightweight-charts.js
 
-Because the project has become large, avoid piecemeal code insertion unless the exact insertion point is clearly identified.
+Charting library used by the HTML chart.
 
-For every module:
+src/data/excel_loader.py
 
-1. Establish working GitHub checkpoint
-2. Inspect current code
-3. Make ONE architectural change
-4. Run application
-5. Test the change
-6. Commit to GitHub
-7. Create development checkpoint
-8. Move to next change
+Used for loading trading data from Excel/data files.
 
-Do NOT mix:
+Current data folder configured in Python:
 
-Layout changes
-Drawing changes
-Crosshair changes
-Timeframe changes
+D:\DataP\Files
+4. ChartSlot development
 
-in one uncontrolled edit.
+We implemented multiple chart slots.
 
-19. Immediate Next Session Plan
-Step 1 — Recovery
+Each chart has:
 
-Start from the latest confirmed working GitHub copy.
+Chart 1
+Chart 2
+...
 
-Do not make additional edits until:
+A chart slot contains:
 
-python src\main.py
+Header
+Sheet name
+Timeframe label
+Chart browser
+Active/inactive state
+Mouse tracking
+Drawing interaction
+Crosshair interaction
+Active chart
 
-starts successfully.
+Clicking a chart changes the active slot.
 
-Step 2 — Stabilize ChartSlot
+Example terminal output:
 
-Verify:
+[CLICK] ChartSlot 2
+[ACTIVE] ChartSlot 2
 
-ChartSlot
- ├── browser
- ├── symbol
- ├── timeframe
- ├── drawings
- └── active state
-Step 3 — Fix Active Chart
+This is currently working.
 
-Clicking a chart must reliably make it the active chart.
+5. Chart selection
 
-Step 4 — Fix Independent Timeframes
+We implemented chart selection using:
 
-Verify every visible chart can independently use:
+self.parent.set_active_slot(
+    self.slot_id
+)
 
-1m / 3m / 5m / 10m / 15m / 30m /
-1h / 4h / 1D
-Step 5 — Remove Drawing Box
+The active chart receives a blue border.
 
-Move all drawing controls to:
+Inactive chart:
 
-Drawings ▼
+border: 1px solid #d5d5d5
 
-in the main toolbar.
+Active chart:
 
-Step 6 — Stabilize Drawings
+border: 2px solid #1976d2
 
-Verify every chart can independently:
+The title also changes color/weight when active.
+
+6. Drawing system
+
+A substantial amount of work has been completed on the drawing system.
+
+Current drawing types include:
+
+rectangle
+trend
+horizontal
+vertical
+
+The HTML drawing engine maintains drawings in market coordinates.
+
+For two-point drawings, we use:
+
+drawing.first
+drawing.second
+
+with:
+
+{
+    time,
+    price
+}
+
+This was important because drawings need to survive timeframe changes.
+
+7. Rectangle functionality
+
+We specifically worked on rectangle interaction.
+
+The rectangle supports:
 
 Create
-Select
 Move
 Resize
 Delete
-Change Color
 
-drawings.
+The resize/move logic is implemented around:
 
-Step 7 — Crosshair Synchronization
+function resizeOrMoveRectangle(...)
 
-Implement proper time-based crosshair synchronization.
+and:
 
-Important:
+function moveTwoPointDrawing(...)
 
-Do not synchronize raw pixel coordinates.
+The rectangle has different drag modes such as:
 
-Charts can have:
+move
+topLeft
+topRight
+bottomLeft
+bottomRight
 
-different dimensions
-different timeframes
-different symbols
+etc.
 
-Therefore synchronization should be based on market time.
+8. Important drawing bug we fixed
 
-Step 8 — Full Layout Testing
+Initially:
 
-Test:
+Rectangle could be created, resized and deleted, but could not properly move.
 
-1 → 2 → 3 → 4 → 6 → 8
+We traced this through:
 
-and back again.
+pointerdown
+      ↓
+hitTestDrawing()
+      ↓
+dragMode
+      ↓
+dragStartPoint
+      ↓
+dragOriginal
+      ↓
+pointermove
+      ↓
+moveTwoPointDrawing()
 
-Step 9 — Custom Layout Mapping
+We discovered that the movement was dependent on converting screen coordinates into market coordinates.
 
-Only after the basic layout engine is stable.
+The relevant functions are:
 
-Step 10 — Pop-Out
+screenToMarketPoint()
 
-Implement selected-chart pop-out after layout mapping is stable.
+and:
 
-20. Overall Progress
-Module	Status
-Project foundation	✅ Complete
-PySide6 application	✅ Complete
-Lightweight Charts	✅ Complete
-Candlestick chart	✅ Complete
-Closing line removal	✅ Complete
-Timeframes	🟡 Partially complete
-Trend line	🟡 Implemented / needs multi-layout validation
-Horizontal line	🟡 Implemented / needs multi-layout validation
-Vertical line	🟡 Implemented / needs multi-layout validation
-Rectangle	🟡 Implemented / needs multi-layout validation
-Drawing color	🟡 Implemented / needs UI redesign
-Drawing selection	🟡 Needs multi-layout validation
-Drawing movement	🟡 Needs multi-layout validation
-Drawing resize	🟡 Needs multi-layout validation
-Drawing deletion	🟡 Needs multi-layout validation
-Layout engine	🟡 In development
-Active chart	🟡 Needs stabilization
-Per-chart timeframe	🟡 Needs stabilization
-Per-chart drawings	🟡 Needs stabilization
-Crosshair synchronization	❌ Not working
-Drawing box removal	❌ Not completed
-Layout state persistence	❌ Not verified
-Custom layout mapping	⏳ Not started
-Pop-out chart	⏳ Not started
-Complete integration testing	❌ Not completed
-21. Current Project Direction
+getLocalPosition()
 
-The long-term architecture is:
+Current conversion:
 
-Trading Dashboard
-│
-├── Dashboard
-│
-├── Layout Manager
-│
-├── Chart Slot Manager
-│
-├── Chart Engine
-│
-├── Timeframe Manager
-│
-├── Drawing Manager
-│
-├── Crosshair Synchronizer
-│
-├── Indicator Manager
-│
-├── Custom Layout Manager
-│
-└── Pop-Out Manager
+chart.timeScale().coordinateToTime(x)
 
-The goal is for every chart in every layout to behave like a complete independent trading chart, while the dashboard controls the active chart and provides synchronized analysis functionality.
+and:
 
-END OF CURRENT DEVELOPMENT CHECKPOINT
+candleSeries.coordinateToPrice(y)
 
-### Tomorrow's starting point
+This allows drawings to be stored in market coordinates instead of screen coordinates.
 
-We should **not continue from tonight's broken state**.
+Result
 
-We'll start by:
+The rectangle movement issue was fixed and you confirmed:
 
-**GitHub → latest correct checkpoint → run → verify → checkpoint → fix active chart → fix timeframes → fix drawings → crosshair.**
+done working
 
-And importantly, **the layout issues are explicitly recorded as unfinished**. We will not mark the layout module complete until those tests actually pass.
+9. Timeframe changes
+
+We also made the drawing system preserve drawings when timeframe changes.
+
+The important function is:
+
+function setChartData(data, sheetName)
+
+The design decision was:
+
+Do NOT clear drawings when changing timeframe.
+
+Instead:
+
+candleSeries.setData(data)
+
+is performed while existing drawings remain stored.
+
+After chart data updates:
+
+redrawDrawings();
+
+is called.
+
+This allows drawings to be reconstructed from their market coordinates.
+
+10. QWebChannel integration
+
+We introduced a Python/JavaScript bridge.
+
+Python:
+
+class ChartBridge(QObject):
+
+with signals/slots.
+
+The browser registers:
+
+self.channel = QWebChannel(
+    self.browser.page()
+)
+
+and:
+
+self.channel.registerObject(
+    "chartBridge",
+    self.bridge
+)
+
+JavaScript accesses the bridge through:
+
+chartBridge
+
+This gives us Python ↔ JavaScript communication.
+
+11. Chart click communication
+
+The JavaScript chart can notify Python when a chart is clicked.
+
+The Python side ultimately calls:
+
+self.select
+
+and then:
+
+self.parent.set_active_slot(
+    self.slot_id
+)
+
+This is working.
+
+12. Crosshair synchronization
+
+This is the current development area.
+
+The goal is:
+
+Mouse over Chart 1
+        ↓
+Chart 1 determines market timestamp
+        ↓
+Python receives timestamp
+        ↓
+Python sends timestamp to other charts
+        ↓
+Each chart finds its nearest candle
+        ↓
+Each chart displays its own crosshair
+
+This approach is important because different charts may have:
+
+Different instruments
+Different timeframes
+Different price values
+
+Therefore we decided not to synchronize the source chart's price.
+
+Instead, synchronize the time.
+
+13. Current crosshair JavaScript design
+
+The chart has:
+
+function getCrosshairMarketPosition(
+    x,
+    y
+)
+
+It converts the mouse X coordinate to a market timestamp.
+
+The important part is:
+
+chart.timeScale()
+    .coordinateToTime(
+        chartX
+    );
+
+The result is essentially:
+
+{
+    time: Number(time)
+}
+14. Crosshair synchronization target
+
+Python has:
+
+def sync_crosshair(
+    self,
+    source_slot_id,
+    time
+):
+
+The target charts receive:
+
+syncCrosshairFromPython(time)
+
+Each target chart searches:
+
+currentDataTimes
+
+for the nearest timestamp.
+
+Then it retrieves that chart's own candle:
+
+const candle =
+    currentCandleData[
+        nearestIndex
+    ];
+
+and uses:
+
+candle.close
+
+for that chart's crosshair price.
+
+So the intended behavior is:
+
+Chart 1
+timestamp = 10:35
+        │
+        ▼
+Chart 2 finds nearest 10:35 candle
+        │
+        ▼
+Chart 2 uses its own close price
+
+This is the correct architecture for multi-chart synchronization.
+
+15. Crosshair mouse-leave behavior
+
+We also have:
+
+clearSyncedCrosshair()
+
+and Python:
+
+clear_synced_crosshair(
+    source_slot_id
+)
+
+The intention is:
+
+Mouse leaves Chart 1
+        ↓
+Chart 2 / other charts
+        ↓
+Clear synchronized crosshair
+16. Issue encountered during crosshair development
+
+During the crosshair changes, we temporarily added:
+
+self.bridge.mouse_moved.connect(
+    self.market_mouse_moved
+)
+
+but ChartSlot did not contain:
+
+market_mouse_moved()
+
+This caused:
+
+AttributeError:
+'ChartSlot' object has no attribute 'market_mouse_moved'
+
+We subsequently removed that invalid connection.
+
+You confirmed:
+
+done working fine.
+
+The application is currently running again.
+
+17. Important current baseline
+
+At the moment, the safest known working baseline is:
+
+Application launches
+        ✓
+Chart slots work
+        ✓
+Chart selection works
+        ✓
+Active chart highlighting works
+        ✓
+Rectangle creation works
+        ✓
+Rectangle resizing works
+        ✓
+Rectangle deletion works
+        ✓
+Rectangle movement works
+        ✓
+Timeframe changes work
+        ✓
+Drawing preservation architecture exists
+        ✓
+QWebChannel exists
+        ✓
+Crosshair synchronization
+        → still being developed/tested
+18. Backup files
+
+We created:
+
+src/main_backup.py
+src/web/chart_test_backup.html
+
+Current verification showed:
+
+main.py
+    ==
+main_backup.py
+
+and:
+
+chart_test.html
+    ==
+chart_test_backup.html
+
+So these backups are currently snapshots of the same modified state, not an older clean version.
+
+This is important for future work: we should create a new dated/versioned backup before making the next significant change.
+
+For example:
+
+src/backups/
+
+could eventually contain:
+
+main_v001.py
+main_v002.py
+main_v003.py
+
+chart_test_v001.html
+chart_test_v002.html
+chart_test_v003.html
+
+That would be much safer than repeatedly overwriting main_backup.py.
+
+19. GitHub ScrapCodes
+
+You also decided to maintain experimental/development code under:
+
+Trading-Dashboard/
+└── ScrapCodes/
+
+The purpose is to keep experimental code separate from the main production/application code.
+
+This is where we can put:
+
+ScrapCodes/
+├── experiments/
+├── backups/
+├── old_versions/
+├── chart_tests/
+└── notes/
+
+as the project grows.
+
+We should not mix experimental files into src/ unless they become part of the actual application.
+
+20. Recommended development rule going forward
+
+From this point, I recommend we use this workflow:
+
+1. Backup current working code
+        ↓
+2. Make ONE change
+        ↓
+3. py_compile / syntax check
+        ↓
+4. Run application
+        ↓
+5. Test
+        ↓
+6. Confirm working
+        ↓
+7. Commit to GitHub
+        ↓
+8. Move to next change
+
+Especially for main.py, we should avoid commands that rewrite the entire file unnecessarily because that caused the special-character/encoding problem earlier.
+
+Current milestone
+Milestone 1 — Multi-chart dashboard
+
+Status: Working
+
+Milestone 2 — Interactive drawings
+
+Status: Working
+
+Milestone 3 — Drawing persistence across timeframe changes
+
+Status: Implemented
+
+Milestone 4 — Crosshair synchronization
+
+Status: In progress
+
+Milestone 5 — Production cleanup/versioned backups
+
+Status: Not started
+
+Milestone 6 — GitHub cleanup/documentation
+
+Status: In progress
