@@ -1,0 +1,3375 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <style>
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+
+            width: 100%;
+            height: 100%;
+
+            overflow: hidden;
+
+            background: #ffffff;
+        }
+
+
+        #chart {
+
+            position: relative;
+
+            width: 100%;
+            height: 100%;
+
+            background: #ffffff;
+        }
+
+
+        /*
+         * Drawing canvas sits above the chart.
+         *
+         * It does NOT receive pointer events.
+         *
+         * Mouse events are handled by #chart.
+         */
+        #drawingCanvas {
+
+            position: absolute;
+
+            left: 0;
+            top: 0;
+
+            width: 100%;
+            height: 100%;
+
+            pointer-events: none;
+
+            z-index: 10;
+        }
+
+    </style>
+
+
+    <script src="lightweight-charts.js"></script>
+
+</head>
+
+
+<body>
+
+
+<div id="chart">
+
+    <canvas id="drawingCanvas"></canvas>
+
+</div>
+
+
+<script>
+
+
+/* =========================================================
+   CHART
+   ========================================================= */
+
+
+const chartContainer =
+    document.getElementById(
+        "chart"
+    );
+
+
+const drawingCanvas =
+    document.getElementById(
+        "drawingCanvas"
+    );
+
+
+const drawingContext =
+    drawingCanvas.getContext(
+        "2d"
+    );
+
+
+const chart =
+    LightweightCharts.createChart(
+        chartContainer,
+        {
+
+            width:
+                chartContainer.clientWidth,
+
+            height:
+                chartContainer.clientHeight,
+
+
+            layout: {
+
+                background: {
+                    color: "#ffffff"
+                },
+
+                textColor: "#333333"
+            },
+
+
+            grid: {
+
+                vertLines: {
+                    color: "#eeeeee"
+                },
+
+                horzLines: {
+                    color: "#eeeeee"
+                }
+            },
+
+
+            rightPriceScale: {
+
+                visible: true,
+
+                borderColor: "#dddddd",
+
+                autoScale: true,
+
+                scaleMargins: {
+
+                    top: 0.10,
+
+                    bottom: 0.10
+                }
+            },
+
+
+            timeScale: {
+
+                borderColor: "#dddddd",
+
+                timeVisible: true,
+
+                secondsVisible: false
+            },
+
+
+            crosshair: {
+
+                mode:
+                    LightweightCharts
+                        .CrosshairMode
+                        .Normal
+            }
+        }
+    );
+
+
+/* =========================================================
+   CANDLE SERIES
+   ========================================================= */
+
+
+const candleSeries =
+    chart.addSeries(
+        LightweightCharts.CandlestickSeries,
+        {
+
+            upColor:
+                "#26a69a",
+
+            downColor:
+                "#ef5350",
+
+            borderUpColor:
+                "#26a69a",
+
+            borderDownColor:
+                "#ef5350",
+
+            wickUpColor:
+                "#26a69a",
+
+            wickDownColor:
+                "#ef5350",
+
+            lastValueVisible:
+                false,
+
+            priceLineVisible:
+                false
+        }
+    );
+
+
+/* =========================================================
+   DATA STATE
+   ========================================================= */
+
+
+let currentCandleData = [];
+
+let currentDataTimes = [];
+
+
+/* =========================================================
+   DRAWING STATE
+   ========================================================= */
+
+
+let drawingMode = null;
+
+
+let drawingPoints = [];
+
+
+let drawings = [];
+
+
+let nextDrawingId = 1;
+
+
+let selectedDrawingId = null;
+
+
+/*
+ * Default color for newly created drawings.
+ *
+ * There is deliberately NO HTML color picker anymore.
+ *
+ * Python can control drawing tools through the
+ * Drawings menu.
+ */
+let defaultDrawingColor =
+    "#1565c0";
+
+
+/* =========================================================
+   DRAG STATE
+   ========================================================= */
+
+
+let dragMode = null;
+
+let dragDrawing = null;
+
+let dragStartPoint = null;
+
+let dragOriginal = null;
+
+
+/* =========================================================
+   TOOL NAMES
+   ========================================================= */
+
+
+const TOOL_NAMES = {
+
+    trend:
+        "Trend Line",
+
+    horizontal:
+        "Horizontal Line",
+
+    vertical:
+        "Vertical Line",
+
+    rectangle:
+        "Rectangle"
+};
+
+
+/* =========================================================
+   CANVAS RESIZE
+   ========================================================= */
+
+
+function resizeDrawingCanvas() {
+
+    const width =
+        chartContainer.clientWidth;
+
+
+    const height =
+        chartContainer.clientHeight;
+
+
+    const ratio =
+        window.devicePixelRatio || 1;
+
+
+    drawingCanvas.width =
+        width * ratio;
+
+
+    drawingCanvas.height =
+        height * ratio;
+
+
+    drawingCanvas.style.width =
+        width + "px";
+
+
+    drawingCanvas.style.height =
+        height + "px";
+
+
+    drawingContext.setTransform(
+        ratio,
+        0,
+        0,
+        ratio,
+        0,
+        0
+    );
+
+
+    redrawDrawings();
+}
+
+
+/* =========================================================
+   NEAREST DATA TIME
+   ========================================================= */
+
+
+function nearestDataTime(
+    originalTime
+) {
+
+    if (
+        !currentDataTimes.length
+    ) {
+
+        return originalTime;
+    }
+
+
+    const numericTime =
+        Number(originalTime);
+
+
+    if (
+        !Number.isFinite(
+            numericTime
+        )
+    ) {
+
+        return null;
+    }
+
+
+    /*
+     * Exact match.
+     */
+
+    if (
+        currentDataTimes.includes(
+            numericTime
+        )
+    ) {
+
+        return numericTime;
+    }
+
+
+    let best =
+        currentDataTimes[0];
+
+
+    let bestDistance =
+        Math.abs(
+            Number(best) -
+            numericTime
+        );
+
+
+    for (
+        let i = 1;
+        i < currentDataTimes.length;
+        i++
+    ) {
+
+        const candidate =
+            currentDataTimes[i];
+
+
+        const candidateDistance =
+            Math.abs(
+                Number(candidate) -
+                numericTime
+            );
+
+
+        if (
+            candidateDistance <
+            bestDistance
+        ) {
+
+            best =
+                candidate;
+
+            bestDistance =
+                candidateDistance;
+        }
+    }
+
+
+    return best;
+}
+
+
+/* =========================================================
+   TIME → SCREEN
+   ========================================================= */
+
+
+function timeToScreen(
+    time
+) {
+
+    const displayTime =
+        nearestDataTime(
+            time
+        );
+
+
+    if (
+        displayTime === null ||
+        displayTime === undefined
+    ) {
+
+        return null;
+    }
+
+
+    return chart.timeScale()
+        .timeToCoordinate(
+            displayTime
+        );
+}
+
+
+/* =========================================================
+   PRICE → SCREEN
+   ========================================================= */
+
+
+function priceToScreen(
+    price
+) {
+
+    if (
+        price === null ||
+        price === undefined
+    ) {
+
+        return null;
+    }
+
+
+    return candleSeries
+        .priceToCoordinate(
+            Number(price)
+        );
+}
+
+
+/* =========================================================
+   MARKET POINT → SCREEN
+   ========================================================= */
+
+
+function pointToScreen(
+    point
+) {
+
+    if (!point) {
+
+        return null;
+    }
+
+
+    const x =
+        timeToScreen(
+            point.time
+        );
+
+
+    const y =
+        priceToScreen(
+            point.price
+        );
+
+
+    if (
+        x === null ||
+        x === undefined ||
+        y === null ||
+        y === undefined
+    ) {
+
+        return null;
+    }
+
+
+    return {
+        x: x,
+        y: y
+    };
+}
+
+
+/* =========================================================
+   SCREEN → MARKET
+   ========================================================= */
+
+
+function screenToMarketPoint(
+    x,
+    y
+) {
+
+    const time =
+        chart.timeScale()
+            .coordinateToTime(
+                x
+            );
+
+
+    const price =
+        candleSeries
+            .coordinateToPrice(
+                y
+            );
+
+
+    if (
+        time === null ||
+        time === undefined ||
+        price === null ||
+        price === undefined
+    ) {
+
+        return null;
+    }
+
+
+    return {
+
+        time: Number(time),
+
+        price: Number(price)
+    };
+}
+
+
+/* =========================================================
+   LOCAL MOUSE POSITION
+   ========================================================= */
+
+
+function getLocalPosition(
+    event
+) {
+
+    const rect =
+        chartContainer
+            .getBoundingClientRect();
+
+
+    return {
+
+        x:
+            event.clientX -
+            rect.left,
+
+        y:
+            event.clientY -
+            rect.top
+    };
+}
+
+
+/* =========================================================
+   DISTANCE
+   ========================================================= */
+
+
+function distance(
+    x1,
+    y1,
+    x2,
+    y2
+) {
+
+    const dx =
+        x2 - x1;
+
+
+    const dy =
+        y2 - y1;
+
+
+    return Math.sqrt(
+        dx * dx +
+        dy * dy
+    );
+}
+
+
+/* =========================================================
+   POINT → LINE SEGMENT DISTANCE
+   ========================================================= */
+
+
+function distanceToSegment(
+    px,
+    py,
+    x1,
+    y1,
+    x2,
+    y2
+) {
+
+    const dx =
+        x2 - x1;
+
+
+    const dy =
+        y2 - y1;
+
+
+    if (
+        dx === 0 &&
+        dy === 0
+    ) {
+
+        return distance(
+            px,
+            py,
+            x1,
+            y1
+        );
+    }
+
+
+    const t =
+        Math.max(
+            0,
+            Math.min(
+                1,
+
+                (
+                    (px - x1) * dx +
+                    (py - y1) * dy
+                )
+                /
+                (
+                    dx * dx +
+                    dy * dy
+                )
+            )
+        );
+
+
+    const nearestX =
+        x1 + t * dx;
+
+
+    const nearestY =
+        y1 + t * dy;
+
+
+    return distance(
+        px,
+        py,
+        nearestX,
+        nearestY
+    );
+}
+
+
+/* =========================================================
+   HANDLE
+   ========================================================= */
+
+
+function drawHandle(
+    x,
+    y
+) {
+
+    drawingContext.beginPath();
+
+
+    drawingContext.arc(
+        x,
+        y,
+        5,
+        0,
+        Math.PI * 2
+    );
+
+
+    drawingContext.fill();
+}
+
+
+/* =========================================================
+   DRAW TREND
+   ========================================================= */
+
+
+function drawTrend(
+    drawing,
+    selected
+) {
+
+    const first =
+        pointToScreen(
+            drawing.first
+        );
+
+
+    const second =
+        pointToScreen(
+            drawing.second
+        );
+
+
+    if (
+        !first ||
+        !second
+    ) {
+
+        return;
+    }
+
+
+    drawingContext.strokeStyle =
+        selected
+            ? "#ff9800"
+            : drawing.color;
+
+
+    drawingContext.lineWidth =
+        selected
+            ? 3
+            : 2;
+
+
+    drawingContext.beginPath();
+
+
+    drawingContext.moveTo(
+        first.x,
+        first.y
+    );
+
+
+    drawingContext.lineTo(
+        second.x,
+        second.y
+    );
+
+
+    drawingContext.stroke();
+
+
+    if (selected) {
+
+        drawingContext.fillStyle =
+            "#ff9800";
+
+
+        drawHandle(
+            first.x,
+            first.y
+        );
+
+
+        drawHandle(
+            second.x,
+            second.y
+        );
+    }
+}
+
+
+/* =========================================================
+   DRAW HORIZONTAL
+   ========================================================= */
+
+
+function drawHorizontal(
+    drawing,
+    selected
+) {
+
+    const y =
+        priceToScreen(
+            drawing.price
+        );
+
+
+    if (
+        y === null ||
+        y === undefined
+    ) {
+
+        return;
+    }
+
+
+    const width =
+        chartContainer.clientWidth;
+
+
+    drawingContext.strokeStyle =
+        selected
+            ? "#ff9800"
+            : drawing.color;
+
+
+    drawingContext.lineWidth =
+        selected
+            ? 3
+            : 2;
+
+
+    drawingContext.beginPath();
+
+
+    drawingContext.moveTo(
+        0,
+        y
+    );
+
+
+    drawingContext.lineTo(
+        width,
+        y
+    );
+
+
+    drawingContext.stroke();
+
+
+    if (selected) {
+
+        drawingContext.fillStyle =
+            "#ff9800";
+
+
+        drawHandle(
+            width / 2,
+            y
+        );
+    }
+}
+
+
+/* =========================================================
+   DRAW VERTICAL
+   ========================================================= */
+
+
+function drawVertical(
+    drawing,
+    selected
+) {
+
+    const x =
+        timeToScreen(
+            drawing.time
+        );
+
+
+    if (
+        x === null ||
+        x === undefined
+    ) {
+
+        return;
+    }
+
+
+    const height =
+        chartContainer.clientHeight;
+
+
+    drawingContext.strokeStyle =
+        selected
+            ? "#ff9800"
+            : drawing.color;
+
+
+    drawingContext.lineWidth =
+        selected
+            ? 3
+            : 2;
+
+
+    drawingContext.beginPath();
+
+
+    drawingContext.moveTo(
+        x,
+        0
+    );
+
+
+    drawingContext.lineTo(
+        x,
+        height
+    );
+
+
+    drawingContext.stroke();
+
+
+    if (selected) {
+
+        drawingContext.fillStyle =
+            "#ff9800";
+
+
+        drawHandle(
+            x,
+            height / 2
+        );
+    }
+}
+
+
+/* =========================================================
+   DRAW RECTANGLE
+   ========================================================= */
+
+
+function drawRectangle(
+    drawing,
+    selected
+) {
+
+    const first =
+        pointToScreen(
+            drawing.first
+        );
+
+
+    const second =
+        pointToScreen(
+            drawing.second
+        );
+
+
+    if (
+        !first ||
+        !second
+    ) {
+
+        return;
+    }
+
+
+    const left =
+        Math.min(
+            first.x,
+            second.x
+        );
+
+
+    const right =
+        Math.max(
+            first.x,
+            second.x
+        );
+
+
+    const top =
+        Math.min(
+            first.y,
+            second.y
+        );
+
+
+    const bottom =
+        Math.max(
+            first.y,
+            second.y
+        );
+
+
+    drawingContext.strokeStyle =
+        selected
+            ? "#ff9800"
+            : drawing.color;
+
+
+    drawingContext.lineWidth =
+        selected
+            ? 3
+            : 2;
+
+
+    drawingContext.fillStyle =
+        hexToRgba(
+            drawing.color,
+            0.08
+        );
+
+
+    drawingContext.fillRect(
+        left,
+        top,
+        right - left,
+        bottom - top
+    );
+
+
+    drawingContext.strokeRect(
+        left,
+        top,
+        right - left,
+        bottom - top
+    );
+
+
+    if (selected) {
+
+        drawingContext.fillStyle =
+            "#ff9800";
+
+
+        drawHandle(
+            left,
+            top
+        );
+
+
+        drawHandle(
+            right,
+            top
+        );
+
+
+        drawHandle(
+            left,
+            bottom
+        );
+
+
+        drawHandle(
+            right,
+            bottom
+        );
+
+
+        drawHandle(
+            (left + right) / 2,
+            top
+        );
+
+
+        drawHandle(
+            (left + right) / 2,
+            bottom
+        );
+
+
+        drawHandle(
+            left,
+            (top + bottom) / 2
+        );
+
+
+        drawHandle(
+            right,
+            (top + bottom) / 2
+        );
+    }
+}
+
+
+/* =========================================================
+   HEX → RGBA
+   ========================================================= */
+
+
+function hexToRgba(
+    hex,
+    alpha
+) {
+
+    const value =
+        String(hex || "#1565c0")
+            .replace(
+                "#",
+                ""
+            );
+
+
+    const bigint =
+        parseInt(
+            value,
+            16
+        );
+
+
+    if (
+        !Number.isFinite(
+            bigint
+        )
+    ) {
+
+        return (
+            "rgba(21,101,192," +
+            alpha +
+            ")"
+        );
+    }
+
+
+    const r =
+        (bigint >> 16) & 255;
+
+
+    const g =
+        (bigint >> 8) & 255;
+
+
+    const b =
+        bigint & 255;
+
+
+    return (
+        "rgba(" +
+        r +
+        "," +
+        g +
+        "," +
+        b +
+        "," +
+        alpha +
+        ")"
+    );
+}
+
+
+/* =========================================================
+   REDRAW ALL DRAWINGS
+   ========================================================= */
+
+
+function redrawDrawings() {
+
+    const width =
+        chartContainer.clientWidth;
+
+
+    const height =
+        chartContainer.clientHeight;
+
+
+    drawingContext.clearRect(
+        0,
+        0,
+        width,
+        height
+    );
+
+
+    for (
+        const drawing of drawings
+    ) {
+
+        const selected =
+            drawing.id ===
+            selectedDrawingId;
+
+
+        if (
+            drawing.type ===
+            "trend"
+        ) {
+
+            drawTrend(
+                drawing,
+                selected
+            );
+
+        }
+
+
+        else if (
+            drawing.type ===
+            "horizontal"
+        ) {
+
+            drawHorizontal(
+                drawing,
+                selected
+            );
+
+        }
+
+
+        else if (
+            drawing.type ===
+            "vertical"
+        ) {
+
+            drawVertical(
+                drawing,
+                selected
+            );
+
+        }
+
+
+        else if (
+            drawing.type ===
+            "rectangle"
+        ) {
+
+            drawRectangle(
+                drawing,
+                selected
+            );
+        }
+    }
+
+
+    /*
+     * Temporary first point.
+     */
+
+    if (
+        drawingPoints.length === 1
+    ) {
+
+        const point =
+            pointToScreen(
+                drawingPoints[0]
+            );
+
+
+        if (point) {
+
+            drawingContext.fillStyle =
+                defaultDrawingColor;
+
+
+            drawHandle(
+                point.x,
+                point.y
+            );
+        }
+    }
+}
+
+
+/* =========================================================
+   SELECT DRAWING
+   ========================================================= */
+
+
+function selectDrawing(
+    drawing
+) {
+
+    selectedDrawingId =
+        drawing
+            ? drawing.id
+            : null;
+
+
+    redrawDrawings();
+}
+
+
+/* =========================================================
+   NORMALIZE COLOR
+   ========================================================= */
+
+
+function normalizeColor(
+    color
+) {
+
+    if (!color) {
+
+        return "#1565c0";
+    }
+
+
+    if (
+        color.startsWith("#")
+    ) {
+
+        if (
+            color.length === 7
+        ) {
+
+            return color;
+        }
+
+
+        if (
+            color.length === 4
+        ) {
+
+            return (
+                "#" +
+                color[1] + color[1] +
+                color[2] + color[2] +
+                color[3] + color[3]
+            );
+        }
+    }
+
+
+    return "#1565c0";
+}
+
+
+/* =========================================================
+   DELETE SELECTED
+   ========================================================= */
+
+
+function deleteSelectedDrawing() {
+
+    if (
+        selectedDrawingId === null
+    ) {
+
+        return;
+    }
+
+
+    const deleteId =
+        selectedDrawingId;
+
+
+    drawings =
+        drawings.filter(
+            function(drawing) {
+
+                return (
+                    drawing.id !==
+                    deleteId
+                );
+            }
+        );
+
+
+    selectedDrawingId =
+        null;
+
+
+    redrawDrawings();
+}
+
+
+/* =========================================================
+   HIT TEST
+   ========================================================= */
+
+
+function hitTestDrawing(
+    x,
+    y
+) {
+
+    /*
+     * Newest drawing gets priority.
+     */
+
+    for (
+        let i =
+            drawings.length - 1;
+
+        i >= 0;
+
+        i--
+    ) {
+
+        const drawing =
+            drawings[i];
+
+
+        /*
+         * TREND
+         */
+
+        if (
+            drawing.type ===
+            "trend"
+        ) {
+
+            const first =
+                pointToScreen(
+                    drawing.first
+                );
+
+
+            const second =
+                pointToScreen(
+                    drawing.second
+                );
+
+
+            if (
+                !first ||
+                !second
+            ) {
+
+                continue;
+            }
+
+
+            if (
+                distance(
+                    x,
+                    y,
+                    first.x,
+                    first.y
+                ) <= 12
+            ) {
+
+                return {
+
+                    drawing:
+                        drawing,
+
+                    part:
+                        "first"
+                };
+            }
+
+
+            if (
+                distance(
+                    x,
+                    y,
+                    second.x,
+                    second.y
+                ) <= 12
+            ) {
+
+                return {
+
+                    drawing:
+                        drawing,
+
+                    part:
+                        "second"
+                };
+            }
+
+
+            if (
+                distanceToSegment(
+                    x,
+                    y,
+
+                    first.x,
+                    first.y,
+
+                    second.x,
+                    second.y
+                ) <= 10
+            ) {
+
+                return {
+
+                    drawing:
+                        drawing,
+
+                    part:
+                        "move"
+                };
+            }
+        }
+
+
+        /*
+         * HORIZONTAL
+         */
+
+        else if (
+            drawing.type ===
+            "horizontal"
+        ) {
+
+            const yLine =
+                priceToScreen(
+                    drawing.price
+                );
+
+
+            if (
+                yLine !== null &&
+                Math.abs(
+                    y - yLine
+                ) <= 10
+            ) {
+
+                return {
+
+                    drawing:
+                        drawing,
+
+                    part:
+                        "move"
+                };
+            }
+        }
+
+
+        /*
+         * VERTICAL
+         */
+
+        else if (
+            drawing.type ===
+            "vertical"
+        ) {
+
+            const xLine =
+                timeToScreen(
+                    drawing.time
+                );
+
+
+            if (
+                xLine !== null &&
+                Math.abs(
+                    x - xLine
+                ) <= 10
+            ) {
+
+                return {
+
+                    drawing:
+                        drawing,
+
+                    part:
+                        "move"
+                };
+            }
+        }
+
+
+        /*
+         * RECTANGLE
+         */
+
+        else if (
+            drawing.type ===
+            "rectangle"
+        ) {
+
+            const first =
+                pointToScreen(
+                    drawing.first
+                );
+
+
+            const second =
+                pointToScreen(
+                    drawing.second
+                );
+
+
+            if (
+                !first ||
+                !second
+            ) {
+
+                continue;
+            }
+
+
+            const left =
+                Math.min(
+                    first.x,
+                    second.x
+                );
+
+
+            const right =
+                Math.max(
+                    first.x,
+                    second.x
+                );
+
+
+            const top =
+                Math.min(
+                    first.y,
+                    second.y
+                );
+
+
+            const bottom =
+                Math.max(
+                    first.y,
+                    second.y
+                );
+
+
+            const handleSize =
+                12;
+
+
+            /*
+             * Top-left.
+             */
+
+            if (
+                distance(
+                    x,
+                    y,
+                    left,
+                    top
+                ) <= handleSize
+            ) {
+
+                return {
+
+                    drawing:
+                        drawing,
+
+                    part:
+                        "topLeft"
+                };
+            }
+
+
+            /*
+             * Top-right.
+             */
+
+            if (
+                distance(
+                    x,
+                    y,
+                    right,
+                    top
+                ) <= handleSize
+            ) {
+
+                return {
+
+                    drawing:
+                        drawing,
+
+                    part:
+                        "topRight"
+                };
+            }
+
+
+            /*
+             * Bottom-left.
+             */
+
+            if (
+                distance(
+                    x,
+                    y,
+                    left,
+                    bottom
+                ) <= handleSize
+            ) {
+
+                return {
+
+                    drawing:
+                        drawing,
+
+                    part:
+                        "bottomLeft"
+                };
+            }
+
+
+            /*
+             * Bottom-right.
+             */
+
+            if (
+                distance(
+                    x,
+                    y,
+                    right,
+                    bottom
+                ) <= handleSize
+            ) {
+
+                return {
+
+                    drawing:
+                        drawing,
+
+                    part:
+                        "bottomRight"
+                };
+            }
+
+
+            /*
+             * Top edge.
+             */
+
+            if (
+                Math.abs(
+                    y - top
+                ) <= handleSize &&
+
+                x >= left &&
+                x <= right
+            ) {
+
+                return {
+
+                    drawing:
+                        drawing,
+
+                    part:
+                        "top"
+                };
+            }
+
+
+            /*
+             * Bottom edge.
+             */
+
+            if (
+                Math.abs(
+                    y - bottom
+                ) <= handleSize &&
+
+                x >= left &&
+                x <= right
+            ) {
+
+                return {
+
+                    drawing:
+                        drawing,
+
+                    part:
+                        "bottom"
+                };
+            }
+
+
+            /*
+             * Left edge.
+             */
+
+            if (
+                Math.abs(
+                    x - left
+                ) <= handleSize &&
+
+                y >= top &&
+                y <= bottom
+            ) {
+
+                return {
+
+                    drawing:
+                        drawing,
+
+                    part:
+                        "left"
+                };
+            }
+
+
+            /*
+             * Right edge.
+             */
+
+            if (
+                Math.abs(
+                    x - right
+                ) <= handleSize &&
+
+                y >= top &&
+                y <= bottom
+            ) {
+
+                return {
+
+                    drawing:
+                        drawing,
+
+                    part:
+                        "right"
+                };
+            }
+
+
+            /*
+             * Rectangle body.
+             */
+
+            if (
+                x >= left &&
+                x <= right &&
+                y >= top &&
+                y <= bottom
+            ) {
+
+                return {
+
+                    drawing:
+                        drawing,
+
+                    part:
+                        "move"
+                };
+            }
+        }
+    }
+
+
+    return null;
+}
+
+
+/* =========================================================
+   CREATE DRAWING
+   ========================================================= */
+
+
+function createDrawing(
+    type,
+    first,
+    second
+) {
+
+    const drawing = {
+
+        id:
+            nextDrawingId++,
+
+        type:
+            type,
+
+        color:
+            defaultDrawingColor
+    };
+
+
+    if (
+        type ===
+        "trend"
+    ) {
+
+        drawing.first = {
+
+            time:
+                first.time,
+
+            price:
+                first.price
+        };
+
+
+        drawing.second = {
+
+            time:
+                second.time,
+
+            price:
+                second.price
+        };
+    }
+
+
+    else if (
+        type ===
+        "rectangle"
+    ) {
+
+        drawing.first = {
+
+            time:
+                first.time,
+
+            price:
+                first.price
+        };
+
+
+        drawing.second = {
+
+            time:
+                second.time,
+
+            price:
+                second.price
+        };
+    }
+
+
+    else if (
+        type ===
+        "horizontal"
+    ) {
+
+        drawing.price =
+            first.price;
+    }
+
+
+    else if (
+        type ===
+        "vertical"
+    ) {
+
+        drawing.time =
+            first.time;
+    }
+
+
+    drawings.push(
+        drawing
+    );
+
+
+    selectedDrawingId =
+        drawing.id;
+
+
+    return drawing;
+}
+
+
+/* =========================================================
+   FINISH DRAWING
+   ========================================================= */
+
+
+function finishDrawing(
+    point
+) {
+
+    if (
+        !drawingMode
+    ) {
+
+        return;
+    }
+
+
+    /*
+     * Horizontal.
+     */
+
+    if (
+        drawingMode ===
+        "horizontal"
+    ) {
+
+        createDrawing(
+            "horizontal",
+            point,
+            point
+        );
+
+
+        drawingPoints = [];
+
+
+        drawingMode =
+            null;
+
+
+        chartContainer.style.cursor =
+            "default";
+
+
+        redrawDrawings();
+
+
+        return;
+    }
+
+
+    /*
+     * Vertical.
+     */
+
+    if (
+        drawingMode ===
+        "vertical"
+    ) {
+
+        createDrawing(
+            "vertical",
+            point,
+            point
+        );
+
+
+        drawingPoints = [];
+
+
+        drawingMode =
+            null;
+
+
+        chartContainer.style.cursor =
+            "default";
+
+
+        redrawDrawings();
+
+
+        return;
+    }
+
+
+    /*
+     * Trend / rectangle require
+     * two points.
+     */
+
+    if (
+        drawingPoints.length !== 1
+    ) {
+
+        return;
+    }
+
+
+    const first =
+        drawingPoints[0];
+
+
+    createDrawing(
+        drawingMode,
+        first,
+        point
+    );
+
+
+    /*
+     * One-shot drawing tools.
+     */
+
+    drawingPoints = [];
+
+
+    drawingMode =
+        null;
+
+
+    chartContainer.style.cursor =
+        "default";
+
+
+    redrawDrawings();
+}
+
+
+/* =========================================================
+   ACTIVATE DRAWING TOOL
+   ========================================================= */
+
+
+function setDrawingMode(
+    type
+) {
+
+    if (
+        !TOOL_NAMES[type]
+    ) {
+
+        return;
+    }
+
+
+    drawingMode =
+        type;
+
+
+    drawingPoints = [];
+
+
+    selectedDrawingId =
+        null;
+
+
+    chartContainer.style.cursor =
+        "crosshair";
+
+
+    redrawDrawings();
+}
+
+
+/* =========================================================
+   POINTER DOWN
+   ========================================================= */
+
+
+chartContainer.addEventListener(
+    "pointerdown",
+
+    function(event) {
+
+        const position =
+            getLocalPosition(
+                event
+            );
+
+
+        /*
+         * Existing drawings have priority.
+         */
+
+        const hit =
+            hitTestDrawing(
+                position.x,
+                position.y
+            );
+
+
+        if (hit) {
+
+            selectDrawing(
+                hit.drawing
+            );
+
+
+            dragDrawing =
+                hit.drawing;
+
+
+            dragMode =
+                hit.part;
+
+
+            dragStartPoint =
+                screenToMarketPoint(
+                    position.x,
+                    position.y
+                );
+
+
+            dragOriginal =
+                cloneDrawing(
+                    hit.drawing
+                );
+
+
+            event.preventDefault();
+
+            event.stopPropagation();
+
+            return;
+        }
+
+
+        /*
+         * No drawing selected.
+         *
+         * Check whether a drawing tool
+         * is active.
+         */
+
+        if (
+            !drawingMode
+        ) {
+
+            return;
+        }
+
+
+        const point =
+            screenToMarketPoint(
+                position.x,
+                position.y
+            );
+
+
+        if (!point) {
+
+            return;
+        }
+
+
+        /*
+         * Horizontal / vertical:
+         * one click.
+         */
+
+        if (
+            drawingMode ===
+            "horizontal" ||
+
+            drawingMode ===
+            "vertical"
+        ) {
+
+            finishDrawing(
+                point
+            );
+
+
+            event.preventDefault();
+
+            event.stopPropagation();
+
+            return;
+        }
+
+
+        /*
+         * Trend / rectangle:
+         * first point.
+         */
+
+        if (
+            drawingPoints.length === 0
+        ) {
+
+            drawingPoints = [
+                point
+            ];
+
+
+            redrawDrawings();
+
+
+            event.preventDefault();
+
+            event.stopPropagation();
+
+            return;
+        }
+
+
+        /*
+         * Second point.
+         */
+
+        finishDrawing(
+            point
+        );
+
+
+        event.preventDefault();
+
+        event.stopPropagation();
+
+    },
+
+    true
+);
+
+
+/* =========================================================
+   CLONE DRAWING
+   ========================================================= */
+
+
+function cloneDrawing(
+    drawing
+) {
+
+    const copy = {
+
+        id:
+            drawing.id,
+
+        type:
+            drawing.type,
+
+        color:
+            drawing.color
+    };
+
+
+    if (
+        drawing.first
+    ) {
+
+        copy.first = {
+
+            time:
+                drawing.first.time,
+
+            price:
+                drawing.first.price
+        };
+    }
+
+
+    if (
+        drawing.second
+    ) {
+
+        copy.second = {
+
+            time:
+                drawing.second.time,
+
+            price:
+                drawing.second.price
+        };
+    }
+
+
+    if (
+        drawing.price !==
+        undefined
+    ) {
+
+        copy.price =
+            drawing.price;
+    }
+
+
+    if (
+        drawing.time !==
+        undefined
+    ) {
+
+        copy.time =
+            drawing.time;
+    }
+
+
+    return copy;
+}
+
+
+/* =========================================================
+   POINTER MOVE
+   ========================================================= */
+
+
+chartContainer.addEventListener(
+    "pointermove",
+
+    function(event) {
+
+        if (
+            !dragDrawing ||
+            !dragMode ||
+            !dragStartPoint ||
+            !dragOriginal
+        ) {
+
+            return;
+        }
+
+
+        const position =
+            getLocalPosition(
+                event
+            );
+
+
+        const currentPoint =
+            screenToMarketPoint(
+                position.x,
+                position.y
+            );
+
+
+        if (!currentPoint) {
+
+            return;
+        }
+
+
+        const drawing =
+            dragDrawing;
+
+
+        /*
+         * TREND
+         */
+
+        if (
+            drawing.type ===
+            "trend"
+        ) {
+
+            if (
+                dragMode ===
+                "first"
+            ) {
+
+                drawing.first = {
+
+                    time:
+                        currentPoint.time,
+
+                    price:
+                        currentPoint.price
+                };
+            }
+
+
+            else if (
+                dragMode ===
+                "second"
+            ) {
+
+                drawing.second = {
+
+                    time:
+                        currentPoint.time,
+
+                    price:
+                        currentPoint.price
+                };
+            }
+
+
+            else if (
+                dragMode ===
+                "move"
+            ) {
+
+                moveTwoPointDrawing(
+                    drawing,
+                    currentPoint
+                );
+            }
+        }
+
+
+        /*
+         * HORIZONTAL
+         */
+
+        else if (
+            drawing.type ===
+            "horizontal"
+        ) {
+
+            drawing.price =
+                currentPoint.price;
+        }
+
+
+        /*
+         * VERTICAL
+         */
+
+        else if (
+            drawing.type ===
+            "vertical"
+        ) {
+
+            drawing.time =
+                currentPoint.time;
+        }
+
+
+        /*
+         * RECTANGLE
+         */
+
+        else if (
+            drawing.type ===
+            "rectangle"
+        ) {
+
+            resizeOrMoveRectangle(
+                drawing,
+                currentPoint
+            );
+        }
+
+
+        redrawDrawings();
+
+
+        event.preventDefault();
+
+        event.stopPropagation();
+
+    },
+
+    true
+);
+
+
+/* =========================================================
+   MOVE TWO POINT DRAWING
+   ========================================================= */
+
+
+function moveTwoPointDrawing(
+    drawing,
+    currentPoint
+) {
+
+    const deltaPrice =
+        currentPoint.price -
+        dragStartPoint.price;
+
+
+    let deltaTime = 0;
+
+
+    if (
+        typeof currentPoint.time ===
+            "number" &&
+
+        typeof dragStartPoint.time ===
+            "number"
+    ) {
+
+        deltaTime =
+            currentPoint.time -
+            dragStartPoint.time;
+    }
+
+
+    drawing.first = {
+
+        time:
+
+            typeof dragOriginal.first.time ===
+                "number"
+
+                ?
+
+                dragOriginal.first.time +
+                deltaTime
+
+                :
+
+                dragOriginal.first.time,
+
+        price:
+
+            dragOriginal.first.price +
+            deltaPrice
+    };
+
+
+    drawing.second = {
+
+        time:
+
+            typeof dragOriginal.second.time ===
+                "number"
+
+                ?
+
+                dragOriginal.second.time +
+                deltaTime
+
+                :
+
+                dragOriginal.second.time,
+
+        price:
+
+            dragOriginal.second.price +
+            deltaPrice
+    };
+}
+
+
+/* =========================================================
+   RECTANGLE RESIZE / MOVE
+   ========================================================= */
+
+
+function resizeOrMoveRectangle(
+    drawing,
+    currentPoint
+) {
+
+    /*
+     * Move entire rectangle.
+     */
+
+    if (
+        dragMode ===
+        "move"
+    ) {
+
+        moveTwoPointDrawing(
+            drawing,
+            currentPoint
+        );
+
+        return;
+    }
+
+
+    /*
+     * Top-left.
+     */
+
+    if (
+        dragMode ===
+        "topLeft"
+    ) {
+
+        drawing.first = {
+
+            time:
+                currentPoint.time,
+
+            price:
+                currentPoint.price
+        };
+
+        return;
+    }
+
+
+    /*
+     * Top-right.
+     */
+
+    if (
+        dragMode ===
+        "topRight"
+    ) {
+
+        drawing.first = {
+
+            time:
+                drawing.first.time,
+
+            price:
+                currentPoint.price
+        };
+
+
+        drawing.second = {
+
+            time:
+                currentPoint.time,
+
+            price:
+                drawing.second.price
+        };
+
+
+        return;
+    }
+
+
+    /*
+     * Bottom-left.
+     */
+
+    if (
+        dragMode ===
+        "bottomLeft"
+    ) {
+
+        drawing.first = {
+
+            time:
+                currentPoint.time,
+
+            price:
+                drawing.second.price
+        };
+
+
+        drawing.second = {
+
+            time:
+                drawing.second.time,
+
+            price:
+                currentPoint.price
+        };
+
+
+        return;
+    }
+
+
+    /*
+     * Bottom-right.
+     */
+
+    if (
+        dragMode ===
+        "bottomRight"
+    ) {
+
+        drawing.second = {
+
+            time:
+                currentPoint.time,
+
+            price:
+                currentPoint.price
+        };
+
+
+        return;
+    }
+
+
+    /*
+     * Top edge.
+     */
+
+    if (
+        dragMode ===
+        "top"
+    ) {
+
+        drawing.first = {
+
+            time:
+                drawing.first.time,
+
+            price:
+                currentPoint.price
+        };
+
+
+        return;
+    }
+
+
+    /*
+     * Bottom edge.
+     */
+
+    if (
+        dragMode ===
+        "bottom"
+    ) {
+
+        drawing.second = {
+
+            time:
+                drawing.second.time,
+
+            price:
+                currentPoint.price
+        };
+
+
+        return;
+    }
+
+
+    /*
+     * Left edge.
+     */
+
+    if (
+        dragMode ===
+        "left"
+    ) {
+
+        drawing.first = {
+
+            time:
+                currentPoint.time,
+
+            price:
+                drawing.first.price
+        };
+
+
+        return;
+    }
+
+
+    /*
+     * Right edge.
+     */
+
+    if (
+        dragMode ===
+        "right"
+    ) {
+
+        drawing.second = {
+
+            time:
+                currentPoint.time,
+
+            price:
+                drawing.second.price
+        };
+    }
+}
+
+
+/* =========================================================
+   POINTER UP
+   ========================================================= */
+
+
+document.addEventListener(
+    "pointerup",
+
+    function() {
+
+        dragMode =
+            null;
+
+
+        dragDrawing =
+            null;
+
+
+        dragStartPoint =
+            null;
+
+
+        dragOriginal =
+            null;
+
+    },
+
+    true
+);
+
+
+/* =========================================================
+   KEYBOARD
+   ========================================================= */
+
+
+document.addEventListener(
+    "keydown",
+
+    function(event) {
+
+        /*
+         * Delete selected drawing.
+         */
+
+        if (
+            (
+                event.key ===
+                    "Delete" ||
+
+                event.key ===
+                    "Backspace"
+            ) &&
+
+            selectedDrawingId !== null
+        ) {
+
+            deleteSelectedDrawing();
+
+
+            event.preventDefault();
+
+
+            return;
+        }
+
+
+        /*
+         * Escape.
+         */
+
+        if (
+            event.key ===
+            "Escape"
+        ) {
+
+            drawingMode =
+                null;
+
+
+            drawingPoints =
+                [];
+
+
+            selectedDrawingId =
+                null;
+
+
+            chartContainer.style.cursor =
+                "default";
+
+
+            redrawDrawings();
+
+
+            return;
+        }
+
+    }
+);
+
+
+/* =========================================================
+   CROSSHAIR SYNCHRONIZATION
+   ========================================================= */
+
+
+/*
+ * Python calls this function on the source chart.
+ *
+ * x/y are browser coordinates from QWebEngineView.
+ *
+ * We convert ONLY the X coordinate into a market
+ * timestamp.
+ *
+ * We deliberately do NOT send price because the other
+ * chart may represent another instrument.
+ */
+function getCrosshairMarketPosition(
+    x,
+    y
+) {
+
+    if (
+        !candleSeries ||
+        !currentCandleData.length
+    ) {
+
+        return null;
+    }
+
+
+    const numericX =
+        Number(x);
+
+
+    if (
+        !Number.isFinite(
+            numericX
+        )
+    ) {
+
+        return null;
+    }
+
+
+    /*
+     * The QWebEngineView contains this HTML page.
+     *
+     * Convert the coordinate into a chart-local
+     * coordinate.
+     */
+    const rect =
+        chartContainer
+            .getBoundingClientRect();
+
+
+    const chartX =
+        numericX -
+        rect.left;
+
+
+    const time =
+        chart.timeScale()
+            .coordinateToTime(
+                chartX
+            );
+
+
+    if (
+        time === null ||
+        time === undefined
+    ) {
+
+        return null;
+    }
+
+
+    return {
+
+        time:
+            Number(time)
+    };
+}
+
+
+/*
+ * Python calls this on every other visible chart.
+ *
+ * Each chart maps the timestamp to its OWN nearest
+ * candle and uses its OWN closing price.
+ */
+/* =========================================================
+   CROSSHAIR SYNC
+   ========================================================= */
+
+function syncCrosshairFromPython(
+    x,
+    y
+) {
+
+    if (
+        !candleSeries ||
+        !currentDataTimes.length
+    ) {
+        return;
+    }
+
+    const time =
+        chart.timeScale()
+            .coordinateToTime(
+                x
+            );
+
+    if (
+        time === null ||
+        time === undefined
+    ) {
+        return;
+    }
+
+    const price =
+        candleSeries
+            .coordinateToPrice(
+                y
+            );
+
+    if (
+        price === null ||
+        price === undefined
+    ) {
+        return;
+    }
+
+    /*
+     * Lightweight Charts crosshair
+     * positioning.
+     */
+    if (
+        typeof chart.setCrosshairPosition
+        === "function"
+    ) {
+
+        chart.setCrosshairPosition(
+            price,
+            time,
+            candleSeries
+        );
+    }
+}
+
+
+/*
+ * Remove the crosshair from synchronized charts
+ * when the mouse leaves the source chart.
+ */
+function clearSyncedCrosshair() {
+
+    if (
+        typeof chart.clearCrosshairPosition
+        === "function"
+    ) {
+
+        chart.clearCrosshairPosition();
+    }
+}
+
+
+/* =========================================================
+   PYTHON DRAWING API
+   ========================================================= */
+
+
+/*
+ * Called by Python:
+ *
+ * setDrawingModeFromPython("trend")
+ */
+function setDrawingModeFromPython(
+    type
+) {
+
+    setDrawingMode(
+        type
+    );
+}
+
+
+/*
+ * Backwards-compatible function.
+ */
+function setTrendMode(
+    enabled
+) {
+
+    if (enabled) {
+
+        setDrawingMode(
+            "trend"
+        );
+
+    }
+
+    else {
+
+        drawingMode =
+            null;
+
+
+        drawingPoints =
+            [];
+
+
+        selectedDrawingId =
+            null;
+
+
+        chartContainer.style.cursor =
+            "default";
+
+
+        redrawDrawings();
+    }
+}
+
+
+/* =========================================================
+   CHART DATA
+   ========================================================= */
+
+
+function setChartData(
+    data,
+    sheetName
+) {
+
+    if (
+        !Array.isArray(data)
+    ) {
+
+        data = [];
+    }
+
+
+    /*
+     * Save the complete candle data.
+     *
+     * This is required for crosshair synchronization.
+     */
+
+    currentCandleData =
+        data;
+
+
+    /*
+     * Save current timeframe timestamps.
+     */
+
+    currentDataTimes =
+        data.map(
+            function(candle) {
+
+                return Number(
+                    candle.time
+                );
+            }
+        );
+
+
+    /*
+     * IMPORTANT:
+     *
+     * Do NOT clear drawings here.
+     *
+     * Python can call setChartData()
+     * when the timeframe changes.
+     *
+     * Drawings are stored in market coordinates.
+     */
+
+    candleSeries.setData(
+        data
+    );
+
+
+    chart.priceScale(
+        "right"
+    ).applyOptions({
+
+        autoScale:
+            true
+    });
+
+
+    chart.timeScale()
+        .fitContent();
+
+
+    requestAnimationFrame(
+        function() {
+
+            chart.priceScale(
+                "right"
+            ).applyOptions({
+
+                autoScale:
+                    true
+            });
+
+
+            chart.timeScale()
+                .fitContent();
+
+
+            redrawDrawings();
+        }
+    );
+}
+
+
+/* =========================================================
+   CLEAR CHART
+   ========================================================= */
+
+
+function clearChartData() {
+
+    candleSeries.setData(
+        []
+    );
+
+
+    currentCandleData =
+        [];
+
+
+    currentDataTimes =
+        [];
+
+
+    /*
+     * Instrument/sheet change:
+     * drawings are cleared.
+     *
+     * Timeframe change does NOT call this.
+     */
+
+    drawings =
+        [];
+
+
+    drawingPoints =
+        [];
+
+
+    selectedDrawingId =
+        null;
+
+
+    drawingMode =
+        null;
+
+
+    clearSyncedCrosshair();
+
+
+    redrawDrawings();
+}
+
+
+/* =========================================================
+   TIMEFRAME
+   ========================================================= */
+
+
+function setTimeframe(
+    timeframe
+) {
+
+    /*
+     * Python performs timeframe aggregation.
+     *
+     * Drawings remain stored in market coordinates.
+     */
+
+    redrawDrawings();
+}
+
+
+/* =========================================================
+   RESIZE
+   ========================================================= */
+
+
+window.addEventListener(
+    "resize",
+    resizeDrawingCanvas
+);
+
+
+const resizeObserver =
+    new ResizeObserver(
+        function() {
+
+            chart.resize(
+
+                chartContainer.clientWidth,
+
+                chartContainer.clientHeight
+            );
+
+
+            resizeDrawingCanvas();
+        }
+    );
+
+
+resizeObserver.observe(
+    chartContainer
+);
+
+
+/* =========================================================
+   ZOOM / SCROLL
+   ========================================================= */
+
+
+chart.timeScale()
+    .subscribeVisibleLogicalRangeChange(
+        function() {
+
+            redrawDrawings();
+        }
+    );
+
+
+/* =========================================================
+   INITIALIZE
+   ========================================================= */
+
+
+resizeDrawingCanvas();
+
+
+</script>
+
+
+</body>
+</html>
