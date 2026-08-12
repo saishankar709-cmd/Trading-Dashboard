@@ -31,8 +31,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWebChannel import QWebChannel
-
 from data.excel_loader import load_sheet
 
 
@@ -56,18 +54,19 @@ TIMEFRAMES = [
 class ChartBridge(QObject):
 
     clicked = Signal()
+    mouse_moved = Signal(float, float)
 
     @Slot()
     def chart_clicked(self):
         self.clicked.emit()
 
-class ChartBridge(QObject):
+    @Slot(float, float)
+    def chart_mouse_moved(self, time, price):
+        self.mouse_moved.emit(
+            time,
+            price
+        )
 
-    clicked = Signal()
-
-    @Slot()
-    def chart_clicked(self):
-        self.clicked.emit()
 # =========================================================
 # CLICKABLE / MOUSE-AWARE CHART
 # =========================================================
@@ -254,14 +253,13 @@ class ChartSlot:
             self.channel
         )
 
-        self.browser.setContextMenuPolicy(
-            Qt.NoContextMenu
+        self.bridge.clicked.connect(
+            self.select
         )
 
         self.browser.mouse_moved.connect(
             self.mouse_moved
         )
-
         
         html_file = (
             Path(__file__).parent
@@ -451,19 +449,7 @@ class ChartSlot:
         self.tf_label.setText(
             self.timeframe
         )
-
-    def mouse_moved(
-        self,
-        x,
-        y
-    ):
-
-        self.parent.sync_crosshair(
-        self.slot_id,
-        x,
-        y
-    )
-    
+     
     def activate(self):
         self.parent.set_active_slot(self.slot_id)
 # =========================================================
@@ -1426,7 +1412,7 @@ class TradingDashboard(
     # =====================================================
     # CROSSHAIR SYNCHRONIZATION
     # =====================================================
-    def sync_crosshair( self, source_slot_id, x, y):
+    def sync_crosshair( self, source_slot_id, time, price):
 
         source_slot = self.chart_slots[
         source_slot_id
@@ -1436,11 +1422,10 @@ class TradingDashboard(
             return
 
         javascript = (
-        "syncCrosshairFromPython("
-        f"{int(x)},"
-        f"{int(y)}"
-        ");"
-    )
+            "syncCrosshairFromPython("
+            f"{float(time)},"
+            ");"
+        )
 
         for slot_id in self.visible_slot_ids():
 
