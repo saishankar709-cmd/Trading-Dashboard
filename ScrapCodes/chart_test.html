@@ -539,23 +539,26 @@ function screenToMarketPoint(
     y
 ) {
 
-    const time =
+    /*
+     * Convert screen X to logical candle position.
+     *
+     * Using logical coordinates is more reliable after
+     * timeframe changes than coordinateToTime().
+     */
+
+    const logical =
         chart.timeScale()
-            .coordinateToTime(
-                x
-            );
+            .coordinateToLogical(x);
 
 
     const price =
         candleSeries
-            .coordinateToPrice(
-                y
-            );
+            .coordinateToPrice(y);
 
 
     if (
-        time === null ||
-        time === undefined ||
+        logical === null ||
+        logical === undefined ||
         price === null ||
         price === undefined
     ) {
@@ -564,11 +567,45 @@ function screenToMarketPoint(
     }
 
 
+    /*
+     * Convert logical position to the nearest
+     * candle timestamp.
+     */
+
+    const index =
+        Math.round(logical);
+
+
+    if (
+        index < 0 ||
+        index >= currentDataTimes.length
+    ) {
+
+        return null;
+    }
+
+
+    const time =
+        Number(
+            currentDataTimes[index]
+        );
+
+
+    if (
+        !Number.isFinite(time)
+    ) {
+
+        return null;
+    }
+
+
     return {
 
-        time: Number(time),
+        time:
+            time,
 
-        price: Number(price)
+        price:
+            Number(price)
     };
 }
 
@@ -3029,8 +3066,7 @@ function getCrosshairMarketPosition(
    ========================================================= */
 
 function syncCrosshairFromPython(
-    x,
-    y
+    time
 ) {
 
     if (
@@ -3040,36 +3076,92 @@ function syncCrosshairFromPython(
         return;
     }
 
-    const time =
-        chart.timeScale()
-            .coordinateToTime(
-                x
-            );
+
+    const targetTime =
+        Number(time);
+
 
     if (
-        time === null ||
-        time === undefined
+        !Number.isFinite(targetTime)
     ) {
         return;
     }
 
-    const price =
-        candleSeries
-            .coordinateToPrice(
-                y
-            );
-
-    if (
-        price === null ||
-        price === undefined
-    ) {
-        return;
-    }
 
     /*
-     * Lightweight Charts crosshair
-     * positioning.
+     * Find the nearest candle belonging
+     * to THIS chart's current timeframe.
      */
+
+    let nearestIndex = 0;
+
+    let nearestDistance =
+        Infinity;
+
+
+    for (
+        let i = 0;
+        i < currentDataTimes.length;
+        i++
+    ) {
+
+        const distance =
+            Math.abs(
+                currentDataTimes[i]
+                -
+                targetTime
+            );
+
+
+        if (
+            distance <
+            nearestDistance
+        ) {
+
+            nearestDistance =
+                distance;
+
+            nearestIndex =
+                i;
+        }
+    }
+
+
+    const nearestTime =
+        currentDataTimes[
+            nearestIndex
+        ];
+
+
+    const candle =
+        currentCandleData[
+            nearestIndex
+        ];
+
+
+    if (!candle) {
+        return;
+    }
+
+
+    /*
+     * Use this chart's own candle close
+     * for the crosshair price.
+     */
+
+    const price =
+        Number(
+            candle.close
+        );
+
+
+    if (
+        !Number.isFinite(price)
+    ) {
+        return;
+    }
+
+
     if (
         typeof chart.setCrosshairPosition
         === "function"
@@ -3077,12 +3169,11 @@ function syncCrosshairFromPython(
 
         chart.setCrosshairPosition(
             price,
-            time,
+            nearestTime,
             candleSeries
         );
     }
 }
-
 
 /*
  * Remove the crosshair from synchronized charts
