@@ -1,10 +1,19 @@
+import math
 import json
 import sys
 from pathlib import Path
 
 import pandas as pd
 
-from PySide6.QtCore import QDate, QUrl, Qt, Signal
+from PySide6.QtWebChannel import QWebChannel
+from PySide6.QtCore import (
+    QDate,
+    QUrl,
+    Qt,
+    Signal,
+    QObject,
+    Slot,
+)
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -23,7 +32,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
-
 from data.excel_loader import load_sheet
 
 
@@ -44,20 +52,53 @@ TIMEFRAMES = [
     ("1D", 1440),
 ]
 
+class ChartBridge(QObject):
+
+    clicked = Signal()
+    mouse_moved = Signal(float, float)
+
+    @Slot()
+    def chart_clicked(self):
+        self.clicked.emit()
+
+    @Slot(float, float)
+    def chart_mouse_moved(self, time, price):
+        self.mouse_moved.emit(
+            time,
+            price
+        )
 
 # =========================================================
-# CLICKABLE CHART
+# CLICKABLE / MOUSE-AWARE CHART
 # =========================================================
-
 class ClickableChartView(QWebEngineView):
 
     clicked = Signal()
+    mouse_moved = Signal(int, int)
+    mouse_left = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setMouseTracking(True)
 
     def mousePressEvent(self, event):
-
         self.clicked.emit()
-
         super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        pos = event.position()
+
+        self.mouse_moved.emit(
+            int(pos.x()),
+            int(pos.y())
+        )
+
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event):
+        self.mouse_left.emit()
+        super().leaveEvent(event)
 
 
 # =========================================================
@@ -66,7 +107,11 @@ class ClickableChartView(QWebEngineView):
 
 class ChartSlot:
 
-    def __init__(self, slot_id, parent):
+    def __init__(
+        self,
+        slot_id,
+        parent
+    ):
 
         self.slot_id = slot_id
         self.parent = parent
@@ -125,7 +170,9 @@ class ChartSlot:
 
         self.header = QWidget()
 
-        self.header.setFixedHeight(25)
+        self.header.setFixedHeight(
+            25
+        )
 
         self.header_layout = QHBoxLayout(
             self.header
@@ -138,7 +185,9 @@ class ChartSlot:
             0
         )
 
-        self.header_layout.setSpacing(5)
+        self.header_layout.setSpacing(
+            5
+        )
 
         self.title_label = QLabel(
             f"{self.slot_id + 1}. NIFTY"
@@ -184,17 +233,35 @@ class ChartSlot:
         # -------------------------------------------------
         # CHART
         # -------------------------------------------------
-
         self.browser = ClickableChartView()
 
         self.browser.setContextMenuPolicy(
             Qt.NoContextMenu
         )
+             
+        self.bridge = ChartBridge()
 
-        self.browser.clicked.connect(
-            self.select
+        self.bridge.mouse_moved.connect(
+            self.chart_crosshair_moved
         )
 
+        self.channel = QWebChannel(
+            self.browser.page()
+        )
+
+        self.channel.registerObject(
+            "chartBridge",
+            self.bridge
+        )
+
+        self.browser.page().setWebChannel(
+            self.channel
+        )
+
+        self.bridge.clicked.connect(
+            self.select
+        )
+              
         html_file = (
             Path(__file__).parent
             / "web"
@@ -225,7 +292,10 @@ class ChartSlot:
     # ACTIVE STATE
     # =====================================================
 
-    def set_active(self, active):
+    def set_active(
+        self,
+        active
+    ):
 
         if active:
 
@@ -277,15 +347,113 @@ class ChartSlot:
 
         self.parent.set_active_slot(
             self.slot_id
+    )
+
+    # =====================================================
+    # MOUSE MOVED
+    # =====================================================
+
+    def mouse_moved(
+        self,
+        x,
+        y
+    ):
+        if not self.chart_ready:
+            return
+
+        javascript = (
+            "getCrosshairMarketPosition("
+            f"{int(x)},"
+            f"{int(y)}"
+            ");"
+        )
+
+        self.browser.page().runJavaScript(
+            javascript,
+            self._crosshair_result
+        )
+
+    # =====================================================
+    # JAVASCRIPT CROSSHAIR MOVED
+    # =====================================================
+
+    def chart_crosshair_moved(
+        self,
+        time,
+        price
+    ):
+
+        if not self.chart_ready:
+            return
+
+        if time is None:
+            return
+
+        self.parent.sync_crosshair(
+            self.slot_id,
+            float(time)
+        )
+
+    # =====================================================
+    # CROSSHAIR RESULT
+    # =====================================================
+
+    def _crosshair_result(
+        self,
+        result
+    ):
+
+        print(
+        f"[CROSSHAIR RESULT] slot={self.slot_id + 1} result={result}"
+        )
+
+        if not result:
+            return
+
+        if not isinstance(
+            result,
+            dict
+        ):
+            return
+
+        time = result.get(
+            "time"
+        )
+
+        print(
+            f"[CROSSHAIR TIME] slot={self.slot_id + 1} time={time}"
+        )
+
+        if time is None:
+            return
+
+        self.parent.sync_crosshair(
+        self.slot_id,
+        time
+    )
+
+    # =====================================================
+    # MOUSE LEFT
+    # =====================================================
+
+    def mouse_left(self):
+
+        self.parent.clear_synced_crosshair(
+            self.slot_id
         )
 
     # =====================================================
     # CHART LOADED
     # =====================================================
 
-    def on_chart_loaded(self, ok):
+    def on_chart_loaded(
+        self,
+        ok
+    ):
 
-        self.chart_ready = bool(ok)
+        self.chart_ready = bool(
+            ok
+        )
 
         if not ok:
             return
@@ -301,19 +469,23 @@ class ChartSlot:
     def update_header(self):
 
         self.title_label.setText(
-            f"{self.slot_id + 1}. {self.sheet}"
+            f"{self.slot_id + 1}. "
+            f"{self.sheet}"
         )
 
         self.tf_label.setText(
             self.timeframe
         )
-
-
+     
+    def activate(self):
+        self.parent.set_active_slot(self.slot_id)
 # =========================================================
 # MAIN WINDOW
 # =========================================================
 
-class TradingDashboard(QMainWindow):
+class TradingDashboard(
+    QMainWindow
+):
 
     def __init__(self):
 
@@ -343,6 +515,8 @@ class TradingDashboard(QMainWindow):
         self.current_layout = 1
 
         self.sheet_names = []
+
+        self.current_timeframe = "1m"
 
         # -------------------------------------------------
         # CHART SLOTS
@@ -508,6 +682,7 @@ class TradingDashboard(QMainWindow):
             )
 
             if label == "1m":
+
                 button.setChecked(
                     True
                 )
@@ -553,16 +728,30 @@ class TradingDashboard(QMainWindow):
         )
 
         drawing_actions = [
-            ("↗ Trend Line", "trend"),
-            ("━ Horizontal Line", "horizontal"),
-            ("│ Vertical Line", "vertical"),
-            ("▭ Rectangle", "rectangle"),
+            (
+                "↗ Trend Line",
+                "trend"
+            ),
+            (
+                "━ Horizontal Line",
+                "horizontal"
+            ),
+            (
+                "│ Vertical Line",
+                "vertical"
+            ),
+            (
+                "▭ Rectangle",
+                "rectangle"
+            ),
         ]
 
         for label, tool in drawing_actions:
 
-            action = self.drawings_menu.addAction(
-                label
+            action = (
+                self.drawings_menu.addAction(
+                    label
+                )
             )
 
             action.triggered.connect(
@@ -602,18 +791,38 @@ class TradingDashboard(QMainWindow):
         )
 
         layout_options = [
-            ("▣  1 Chart", 1),
-            ("▥  2 Charts", 2),
-            ("▦  3 Charts", 3),
-            ("▦  4 Charts", 4),
-            ("▦  6 Charts", 6),
-            ("▦  8 Charts", 8),
+            (
+                "▣  1 Chart",
+                1
+            ),
+            (
+                "▥  2 Charts",
+                2
+            ),
+            (
+                "▦  3 Charts",
+                3
+            ),
+            (
+                "▦  4 Charts",
+                4
+            ),
+            (
+                "▦  6 Charts",
+                6
+            ),
+            (
+                "▦  8 Charts",
+                8
+            ),
         ]
 
         for label, count in layout_options:
 
-            action = self.layouts_menu.addAction(
-                label
+            action = (
+                self.layouts_menu.addAction(
+                    label
+                )
             )
 
             action.triggered.connect(
@@ -1000,7 +1209,9 @@ class TradingDashboard(QMainWindow):
             # LOAD VISIBLE SLOTS
             # -------------------------------------------------
 
-            for slot_id in self.visible_slot_ids():
+            for slot_id in (
+                self.visible_slot_ids()
+            ):
 
                 self.refresh_slot(
                     slot_id
@@ -1078,6 +1289,7 @@ class TradingDashboard(QMainWindow):
         if symbol in self.sheet_names:
 
             slot.symbol = symbol
+
             slot.sheet = symbol
 
             slot.update_header()
@@ -1116,7 +1328,7 @@ class TradingDashboard(QMainWindow):
         self.active_slot_id = (
             slot_id
         )
-
+        
         for slot in self.chart_slots:
 
             slot.set_active(
@@ -1125,6 +1337,11 @@ class TradingDashboard(QMainWindow):
             )
 
         slot = self.active_slot()
+
+        slot = self.active_slot()
+        
+        if not slot.chart_ready:
+            return
 
         self.current_timeframe = (
             slot.timeframe
@@ -1216,6 +1433,67 @@ class TradingDashboard(QMainWindow):
         )
 
     # =====================================================
+    # CROSSHAIR SYNCHRONIZATION
+    # =====================================================
+    def sync_crosshair( self, source_slot_id, time):
+
+        source_slot = self.chart_slots[
+        source_slot_id
+    ]
+
+        if not source_slot.chart_ready:
+            return
+
+        javascript = (
+            "syncCrosshairFromPython("
+            f"{float(time)},"
+            ");"
+        )
+
+        for slot_id in self.visible_slot_ids():
+
+            if slot_id == source_slot_id:
+                continue
+
+            slot = self.chart_slots[
+                slot_id
+            ]
+
+            if not slot.chart_ready:
+                continue
+
+            slot.browser.page().runJavaScript(
+            javascript
+        )
+
+    # =====================================================
+    # CLEAR SYNCHRONIZED CROSSHAIR
+    # =====================================================
+
+    def clear_synced_crosshair(self, source_slot_id):
+
+        for slot_id in (
+            self.visible_slot_ids()
+        ):
+
+            if (
+                slot_id
+                == source_slot_id
+            ):
+                continue
+
+            slot = self.chart_slots[
+                slot_id
+            ]
+
+            if not slot.chart_ready:
+                continue
+
+            slot.browser.page().runJavaScript(
+                "clearSyncedCrosshair();"
+            )
+
+    # =====================================================
     # LOAD SHEET INTO SLOT
     # =====================================================
 
@@ -1279,29 +1557,57 @@ class TradingDashboard(QMainWindow):
             chart_data.iterrows()
         ):
 
+            timestamp = int(
+                row["timestamp"].timestamp()
+            )
+
+            open_price = float(row["Open"])
+            high_price = float(row["High"])
+            low_price = float(row["Low"])
+            close_price = float(row["Close"])
+
+            if not all(
+                math.isfinite(value)
+                for value in (
+                    open_price,
+                    high_price,
+                    low_price,
+                    close_price,
+                )
+            ):
+                print(
+                    "[INVALID CANDLE]",
+                    timestamp,
+                    open_price,
+                    high_price,
+                    low_price,
+                    close_price
+                )
+                continue
+
             candles.append(
                 {
-                    "time": int(
-                        row["timestamp"]
-                        .timestamp()
-                    ),
-
-                    "open": float(
-                        row["Open"]
-                    ),
-
-                    "high": float(
-                        row["High"]
-                    ),
-
-                    "low": float(
-                        row["Low"]
-                    ),
-
-                    "close": float(
-                        row["Close"]
-                    ),
+                    "time": timestamp,
+                    "open": open_price,
+                    "high": high_price,
+                    "low": low_price,
+                    "close": close_price,
                 }
+            )
+
+        times = [
+            candle["time"]
+            for candle in candles
+        ]
+
+        duplicates = (
+            len(times) -
+            len(set(times))
+        )
+
+        if duplicates:
+            print(
+                f"[DUPLICATE TIMES] {duplicates}"
             )
 
         if not candles:
@@ -1536,6 +1842,10 @@ class TradingDashboard(QMainWindow):
     ):
 
         slot = self.active_slot()
+        print(
+            f"[DRAWING] Chart {slot.slot_id + 1} -> {tool}, "
+            f"ready={slot.chart_ready}"
+        )
 
         if not slot.chart_ready:
             return
@@ -1598,6 +1908,7 @@ class TradingDashboard(QMainWindow):
             6,
             8
         ]:
+
             return
 
         self.current_layout = (
@@ -1727,9 +2038,12 @@ class TradingDashboard(QMainWindow):
             positions
         ):
 
-            row, col, row_span, col_span = (
-                position
-            )
+            (
+                row,
+                col,
+                row_span,
+                col_span
+            ) = position
 
             slot = self.chart_slots[
                 index
