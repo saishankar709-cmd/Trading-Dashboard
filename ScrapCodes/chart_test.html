@@ -210,6 +210,27 @@ const candleSeries =
         }
     );
 
+chart.subscribeCrosshairMove(
+    function(param) {
+
+        if (!chartBridge) {
+            return;
+        }
+
+        if (
+            !param ||
+            param.time === undefined ||
+            param.time === null
+        ) {
+            return;
+        }
+
+        chartBridge.chart_mouse_moved(
+            Number(param.time),
+            0
+        );
+    }
+);
 
 /* =========================================================
    DATA STATE
@@ -3071,15 +3092,14 @@ function syncCrosshairFromPython(
 
     if (
         !candleSeries ||
-        !currentDataTimes.length
+        !currentDataTimes.length ||
+        !currentCandleData.length
     ) {
         return;
     }
 
-
     const targetTime =
         Number(time);
-
 
     if (
         !Number.isFinite(targetTime)
@@ -3087,17 +3107,13 @@ function syncCrosshairFromPython(
         return;
     }
 
-
     /*
-     * Find the nearest candle belonging
-     * to THIS chart's current timeframe.
+     * Find the nearest candle in THIS chart.
      */
-
     let nearestIndex = 0;
 
     let nearestDistance =
         Infinity;
-
 
     for (
         let i = 0;
@@ -3105,13 +3121,20 @@ function syncCrosshairFromPython(
         i++
     ) {
 
+        const candidate =
+            Number(currentDataTimes[i]);
+
+        if (
+            !Number.isFinite(candidate)
+        ) {
+            continue;
+        }
+
         const distance =
             Math.abs(
-                currentDataTimes[i]
-                -
+                candidate -
                 targetTime
             );
-
 
         if (
             distance <
@@ -3126,34 +3149,27 @@ function syncCrosshairFromPython(
         }
     }
 
-
     const nearestTime =
-        currentDataTimes[
-            nearestIndex
-        ];
-
+        Number(
+            currentDataTimes[
+                nearestIndex
+            ]
+        );
 
     const candle =
         currentCandleData[
             nearestIndex
         ];
 
-
-    if (!candle) {
+    if (
+        !Number.isFinite(nearestTime) ||
+        !candle
+    ) {
         return;
     }
 
-
-    /*
-     * Use this chart's own candle close
-     * for the crosshair price.
-     */
-
     const price =
-        Number(
-            candle.close
-        );
-
+        Number(candle.close);
 
     if (
         !Number.isFinite(price)
@@ -3161,18 +3177,39 @@ function syncCrosshairFromPython(
         return;
     }
 
+    /*
+     * IMPORTANT:
+     *
+     * Lightweight Charts can throw
+     * "Value is null" when the requested
+     * time does not currently have a valid
+     * coordinate.
+     */
+    const coordinate =
+        chart.timeScale()
+            .timeToCoordinate(
+                nearestTime
+            );
 
     if (
-        typeof chart.setCrosshairPosition
-        === "function"
+        coordinate === null ||
+        coordinate === undefined ||
+        !Number.isFinite(
+            Number(coordinate)
+        )
     ) {
-
-        chart.setCrosshairPosition(
-            price,
-            nearestTime,
-            candleSeries
-        );
+        return;
     }
+
+    /*
+     * Only now is it safe to position
+     * the crosshair.
+     */
+    chart.setCrosshairPosition(
+        price,
+        nearestTime,
+        candleSeries
+    );
 }
 
 /*
@@ -3182,6 +3219,12 @@ function syncCrosshairFromPython(
 function clearSyncedCrosshair() {
 
     if (
+        !chart
+    ) {
+        return;
+    }
+
+    if (
         typeof chart.clearCrosshairPosition
         === "function"
     ) {
@@ -3189,8 +3232,6 @@ function clearSyncedCrosshair() {
         chart.clearCrosshairPosition();
     }
 }
-
-
 /* =========================================================
    PYTHON DRAWING API
    ========================================================= */
