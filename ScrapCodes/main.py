@@ -240,6 +240,10 @@ class ChartSlot:
              
         self.bridge = ChartBridge()
 
+        self.bridge.mouse_moved.connect(
+            self.chart_crosshair_moved
+        )
+
         self.channel = QWebChannel(
             self.browser.page()
         )
@@ -256,11 +260,7 @@ class ChartSlot:
         self.bridge.clicked.connect(
             self.select
         )
-
-        self.browser.mouse_moved.connect(
-            self.mouse_moved
-        )
-        
+              
         html_file = (
             Path(__file__).parent
             / "web"
@@ -344,10 +344,8 @@ class ChartSlot:
 
     def select(self):
 
-        print(f"[CLICK] ChartSlot {self.slot_id + 1}")
-
         self.parent.set_active_slot(
-        self.slot_id
+            self.slot_id
     )
 
     # =====================================================
@@ -359,7 +357,6 @@ class ChartSlot:
         x,
         y
     ):
-
         if not self.chart_ready:
             return
 
@@ -376,6 +373,27 @@ class ChartSlot:
         )
 
     # =====================================================
+    # JAVASCRIPT CROSSHAIR MOVED
+    # =====================================================
+
+    def chart_crosshair_moved(
+        self,
+        time,
+        price
+    ):
+
+        if not self.chart_ready:
+            return
+
+        if time is None:
+            return
+
+        self.parent.sync_crosshair(
+            self.slot_id,
+            float(time)
+        )
+
+    # =====================================================
     # CROSSHAIR RESULT
     # =====================================================
 
@@ -383,6 +401,10 @@ class ChartSlot:
         self,
         result
     ):
+
+        print(
+        f"[CROSSHAIR RESULT] slot={self.slot_id + 1} result={result}"
+        )
 
         if not result:
             return
@@ -397,13 +419,17 @@ class ChartSlot:
             "time"
         )
 
+        print(
+            f"[CROSSHAIR TIME] slot={self.slot_id + 1} time={time}"
+        )
+
         if time is None:
             return
 
         self.parent.sync_crosshair(
-            self.slot_id,
-            time
-        )
+        self.slot_id,
+        time
+    )
 
     # =====================================================
     # MOUSE LEFT
@@ -1302,10 +1328,6 @@ class TradingDashboard(
             slot_id
         )
         
-        print(
-            f"[ACTIVE] ChartSlot {self.active_slot_id + 1}"
-        )
-
         for slot in self.chart_slots:
 
             slot.set_active(
@@ -1412,7 +1434,7 @@ class TradingDashboard(
     # =====================================================
     # CROSSHAIR SYNCHRONIZATION
     # =====================================================
-    def sync_crosshair( self, source_slot_id, time, price):
+    def sync_crosshair( self, source_slot_id, time):
 
         source_slot = self.chart_slots[
         source_slot_id
