@@ -1,3 +1,4 @@
+import math
 import json
 import sys
 from pathlib import Path
@@ -1556,29 +1557,57 @@ class TradingDashboard(
             chart_data.iterrows()
         ):
 
+            timestamp = int(
+                row["timestamp"].timestamp()
+            )
+
+            open_price = float(row["Open"])
+            high_price = float(row["High"])
+            low_price = float(row["Low"])
+            close_price = float(row["Close"])
+
+            if not all(
+                math.isfinite(value)
+                for value in (
+                    open_price,
+                    high_price,
+                    low_price,
+                    close_price,
+                )
+            ):
+                print(
+                    "[INVALID CANDLE]",
+                    timestamp,
+                    open_price,
+                    high_price,
+                    low_price,
+                    close_price
+                )
+                continue
+
             candles.append(
                 {
-                    "time": int(
-                        row["timestamp"]
-                        .timestamp()
-                    ),
-
-                    "open": float(
-                        row["Open"]
-                    ),
-
-                    "high": float(
-                        row["High"]
-                    ),
-
-                    "low": float(
-                        row["Low"]
-                    ),
-
-                    "close": float(
-                        row["Close"]
-                    ),
+                    "time": timestamp,
+                    "open": open_price,
+                    "high": high_price,
+                    "low": low_price,
+                    "close": close_price,
                 }
+            )
+
+        times = [
+            candle["time"]
+            for candle in candles
+        ]
+
+        duplicates = (
+            len(times) -
+            len(set(times))
+        )
+
+        if duplicates:
+            print(
+                f"[DUPLICATE TIMES] {duplicates}"
             )
 
         if not candles:
