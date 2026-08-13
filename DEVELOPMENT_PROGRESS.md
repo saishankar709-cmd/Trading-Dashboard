@@ -1,612 +1,848 @@
-Trading Dashboard — Development Progress Notes
-1. Project foundation
+TRADING DASHBOARD — DEVELOPMENT PROGRESS / HANDOFF NOTES
+1. PROJECT IDENTITY
+Project name: Trading Dashboard
 
-Project: Trading-Dashboard
-
-GitHub repository: Trading-Dashboard
-
-Local project:
+Local project root:
 
 D:\Coding\Trading-Dashboard
 
-Python virtual environment:
+Operating environment:
+
+Windows
+PowerShell
+Python virtual environment (.venv)
+
+Virtual environment:
 
 D:\Coding\Trading-Dashboard\.venv
 
-The application is being developed as a PySide6 desktop trading dashboard with embedded HTML/JavaScript charts.
+The normal terminal prompt is:
 
-2. Current architecture
+(.venv) PS D:\Coding\Trading-Dashboard>
 
-The project currently has three important layers:
+2. CURRENT LOCAL PROJECT STRUCTURE
+The current PC folder structure is:
 
-Python / PySide6
-        │
-        ├── Trading Dashboard window
-        ├── ChartSlot instances
-        ├── chart selection
-        ├── timeframe handling
-        ├── Excel/data loading
-        └── QWebChannel bridge
-                │
-                ▼
-        HTML / JavaScript
-                │
-                ├── Lightweight Charts
-                ├── candle rendering
-                ├── crosshair
-                ├── drawing tools
-                └── drawing interaction
-3. Folder structure
-
-The local structure we've been working with is approximately:
-
-Trading-Dashboard/
+D:\Coding\Trading-Dashboard
 │
-├── .venv/
+├── .venv
+│   ├── Include
+│   ├── Lib
+│   └── Scripts
 │
-├── src/
+├── .gitignore
+├── pyvenv.cfg
+│
+├── src
 │   │
-│   ├── main.py
+│   ├── __pycache__
+│   │
+│   ├── charts
+│   │
+│   ├── data
+│   │
+│   ├── ui
+│   │
+│   ├── web
+│   │   ├── chart_test_backup_20260813_071320.html
+│   │   ├── chart_test_backup.html
+│   │   ├── chart_test.html
+│   │   └── lightweight-charts.js
+│   │
+│   ├── main_backup_20260813_071320.py
 │   ├── main_backup.py
-│   │
-│   ├── data/
-│   │   └── excel_loader.py
-│   │
-│   └── web/
-│       │
-│       ├── chart_test.html
-│       ├── chart_test_backup.html
-│       └── lightweight-charts.js
+│   └── main.py
 │
-└── ...
-Important files
-src/main.py
+├── tests
+│
+├── DEVELOPMENT_PROGRESS.md
+├── sync_javascript.txt
+└── sync_python_sections.txt
 
-Main PySide6 application.
+Important source files:
 
-Responsible for:
+D:\Coding\Trading-Dashboard\src\main.py
+D:\Coding\Trading-Dashboard\src\web\chart_test.html
+D:\Coding\Trading-Dashboard\src\web\lightweight-charts.js
 
-Main window
-Dashboard layout
-Multiple chart slots
-Chart selection
-Active chart highlighting
-Timeframe controls
-Sheet selection
-Data loading
+3. BACKUP STRUCTURE
+There are already multiple local backup files.
+
+Current backups:
+
+D:\Coding\Trading-Dashboard\src\main_backup.py
+
+D:\Coding\Trading-Dashboard\src\main_backup_20260813_071320.py
+
+D:\Coding\Trading-Dashboard\src\web\chart_test_backup.html
+
+D:\Coding\Trading-Dashboard\src\web\chart_test_backup_20260813_071320.html
+
+The timestamped backups:
+
+main_backup_20260813_071320.py
+chart_test_backup_20260813_071320.html
+
+represent a dated local backup point.
+
+The normal backups:
+
+main_backup.py
+chart_test_backup.html
+
+are also retained.
+
+IMPORTANT BACKUP RULE
+Do NOT automatically create another backup file.
+
+Before making major changes, inspect the existing backups and GitHub state first.
+
+If a new backup is specifically required, ask/confirm before creating additional files.
+
+4. GITHUB
+The project is synchronized with:
+
+https://github.com/saishankar709-cmd/Trading-Dashboard
+
+The latest working code was manually synced to GitHub after the crosshair synchronization work.
+
+GitHub is the remote recovery point.
+
+The local PC backups are the local recovery points.
+
+Therefore the project currently has:
+
+LOCAL WORKING CODE
+        +
+LOCAL BACKUPS
+        +
+GITHUB COPY
+
+5. CURRENT DEVELOPMENT STATUS
+Major completed milestone
+Multi-chart crosshair synchronization
+STATUS: COMPLETE / WORKING
+
+The crosshair now synchronizes correctly between visible chart layouts.
+
+The original problem was:
+
+Crosshair was visible on the chart where the mouse was placed, but it did not appear correctly on the other charts/layouts.
+
+This has now been fixed.
+
+6. CHART SLOT ARCHITECTURE
+The dashboard supports multiple chart slots.
+
+Current chart slots include:
+
+ChartSlot 1
+ChartSlot 2
+ChartSlot 3
+ChartSlot 4
+
+The application can display different layouts containing different numbers of visible chart slots.
+
+Each chart slot has its own:
+
 QWebEngineView
-QWebChannel
-Python ↔ JavaScript communication
-Crosshair synchronization
-src/web/chart_test.html
+JavaScript chart
+Lightweight Charts instance
+Candlestick series
+QWebChannel bridge
+mouse handling
+chart data
+timeframe
+instrument/sheet
+crosshair state
+The Python dashboard coordinates the visible chart slots.
 
-Main chart implementation.
+7. ACTIVE CHART SELECTION
+Each chart slot can become the active chart.
 
-Responsible for:
+The Python dashboard maintains:
 
-Lightweight Charts
-Candlestick data
-Crosshair
-Drawing tools
-Rectangle
-Trend line
-Horizontal line
-Vertical line
-Drawing selection
-Drawing movement
-Drawing resizing
-Drawing deletion
-JavaScript-side chart interaction
-src/web/lightweight-charts.js
+self.active_slot_id
 
-Charting library used by the HTML chart.
-
-src/data/excel_loader.py
-
-Used for loading trading data from Excel/data files.
-
-Current data folder configured in Python:
-
-D:\DataP\Files
-4. ChartSlot development
-
-We implemented multiple chart slots.
-
-Each chart has:
-
-Chart 1
-Chart 2
-...
-
-A chart slot contains:
-
-Header
-Sheet name
-Timeframe label
-Chart browser
-Active/inactive state
-Mouse tracking
-Drawing interaction
-Crosshair interaction
-Active chart
-
-Clicking a chart changes the active slot.
-
-Example terminal output:
-
-[CLICK] ChartSlot 2
-[ACTIVE] ChartSlot 2
-
-This is currently working.
-
-5. Chart selection
-
-We implemented chart selection using:
+The chart slot calls:
 
 self.parent.set_active_slot(
     self.slot_id
 )
 
-The active chart receives a blue border.
+Temporary debug messages such as:
 
-Inactive chart:
+[ACTIVE] ChartSlot 1
+[CLICK] ChartSlot 1
 
-border: 1px solid #d5d5d5
+were used during development.
 
-Active chart:
+These messages were removed/cleaned up because they are not needed during normal application operation.
 
-border: 2px solid #1976d2
+8. CROSSHAIR SYNCHRONIZATION DESIGN
+The synchronization architecture is intentionally based on time, not shared price.
 
-The title also changes color/weight when active.
+This is important because different charts can represent different instruments.
 
-6. Drawing system
+The flow is:
 
-A substantial amount of work has been completed on the drawing system.
+SOURCE CHART
+     │
+     │ mouse movement
+     ▼
+browser mouse coordinates
+     │
+     ▼
+JavaScript
+     │
+     │ X coordinate → market timestamp
+     ▼
+Python
+     │
+     │ timestamp
+     ▼
+other visible chart slots
+     │
+     ▼
+each chart finds its own nearest candle
+     │
+     ▼
+each chart uses its own candle close
+     │
+     ▼
+destination crosshair
 
-Current drawing types include:
+Therefore:
 
-rectangle
-trend
-horizontal
-vertical
+Do not synchronize the source chart's price to another instrument.
 
-The HTML drawing engine maintains drawings in market coordinates.
+Only the market timestamp should be synchronized.
 
-For two-point drawings, we use:
+9. PYTHON QWEBCHANNEL BRIDGE
+In:
 
-drawing.first
-drawing.second
+D:\Coding\Trading-Dashboard\src\main.py
 
-with:
+the JavaScript bridge contains:
 
-{
+mouse_moved = Signal(float, float)
+
+and:
+
+@Slot(float, float)
+def chart_mouse_moved(self, time, price):
+    self.mouse_moved.emit(
+        time,
+        price
+    )
+
+The bridge is connected to:
+
+self.bridge.mouse_moved.connect(
+    self.chart_crosshair_moved
+)
+
+The chart slot contains:
+
+def chart_crosshair_moved(
+    self,
     time,
     price
-}
-
-This was important because drawings need to survive timeframe changes.
-
-7. Rectangle functionality
-
-We specifically worked on rectangle interaction.
-
-The rectangle supports:
-
-Create
-Move
-Resize
-Delete
-
-The resize/move logic is implemented around:
-
-function resizeOrMoveRectangle(...)
-
-and:
-
-function moveTwoPointDrawing(...)
-
-The rectangle has different drag modes such as:
-
-move
-topLeft
-topRight
-bottomLeft
-bottomRight
-
-etc.
-
-8. Important drawing bug we fixed
-
-Initially:
-
-Rectangle could be created, resized and deleted, but could not properly move.
-
-We traced this through:
-
-pointerdown
-      ↓
-hitTestDrawing()
-      ↓
-dragMode
-      ↓
-dragStartPoint
-      ↓
-dragOriginal
-      ↓
-pointermove
-      ↓
-moveTwoPointDrawing()
-
-We discovered that the movement was dependent on converting screen coordinates into market coordinates.
-
-The relevant functions are:
-
-screenToMarketPoint()
-
-and:
-
-getLocalPosition()
-
-Current conversion:
-
-chart.timeScale().coordinateToTime(x)
-
-and:
-
-candleSeries.coordinateToPrice(y)
-
-This allows drawings to be stored in market coordinates instead of screen coordinates.
-
-Result
-
-The rectangle movement issue was fixed and you confirmed:
-
-done working
-
-9. Timeframe changes
-
-We also made the drawing system preserve drawings when timeframe changes.
-
-The important function is:
-
-function setChartData(data, sheetName)
-
-The design decision was:
-
-Do NOT clear drawings when changing timeframe.
-
-Instead:
-
-candleSeries.setData(data)
-
-is performed while existing drawings remain stored.
-
-After chart data updates:
-
-redrawDrawings();
-
-is called.
-
-This allows drawings to be reconstructed from their market coordinates.
-
-10. QWebChannel integration
-
-We introduced a Python/JavaScript bridge.
-
-Python:
-
-class ChartBridge(QObject):
-
-with signals/slots.
-
-The browser registers:
-
-self.channel = QWebChannel(
-    self.browser.page()
-)
-
-and:
-
-self.channel.registerObject(
-    "chartBridge",
-    self.bridge
-)
-
-JavaScript accesses the bridge through:
-
-chartBridge
-
-This gives us Python ↔ JavaScript communication.
-
-11. Chart click communication
-
-The JavaScript chart can notify Python when a chart is clicked.
-
-The Python side ultimately calls:
-
-self.select
-
-and then:
-
-self.parent.set_active_slot(
-    self.slot_id
-)
-
-This is working.
-
-12. Crosshair synchronization
-
-This is the current development area.
-
-The goal is:
-
-Mouse over Chart 1
-        ↓
-Chart 1 determines market timestamp
-        ↓
-Python receives timestamp
-        ↓
-Python sends timestamp to other charts
-        ↓
-Each chart finds its nearest candle
-        ↓
-Each chart displays its own crosshair
-
-This approach is important because different charts may have:
-
-Different instruments
-Different timeframes
-Different price values
-
-Therefore we decided not to synchronize the source chart's price.
-
-Instead, synchronize the time.
-
-13. Current crosshair JavaScript design
-
-The chart has:
-
-function getCrosshairMarketPosition(
-    x,
-    y
-)
-
-It converts the mouse X coordinate to a market timestamp.
-
-The important part is:
-
-chart.timeScale()
-    .coordinateToTime(
-        chartX
-    );
-
-The result is essentially:
-
-{
-    time: Number(time)
-}
-14. Crosshair synchronization target
-
-Python has:
-
-def sync_crosshair(
-    self,
-    source_slot_id,
-    time
 ):
 
-The target charts receive:
+The price argument exists because the bridge currently emits both time and price.
 
-syncCrosshairFromPython(time)
+However, for synchronizing different instruments, time is the important value.
 
-Each target chart searches:
+The destination chart calculates its own price.
+
+Do not unnecessarily redesign this working bridge unless required by a future feature.
+
+10. BROWSER MOUSE HANDLING
+The custom browser widget contains:
+
+mouse_moved = Signal(int, int)
+mouse_left = Signal()
+
+Mouse tracking is enabled.
+
+Mouse movement emits:
+
+self.mouse_moved.emit(
+    int(pos.x()),
+    int(pos.y())
+)
+
+When the mouse leaves:
+
+self.mouse_left.emit()
+
+The chart slot connects browser movement to its own mouse handling.
+
+This allows Python to obtain browser coordinates and ask JavaScript to determine the corresponding market timestamp.
+
+11. JAVASCRIPT CHART BRIDGE
+In:
+
+D:\Coding\Trading-Dashboard\src\web\chart_test.html
+
+the bridge is initialized using:
+
+let chartBridge = null;
+
+new QWebChannel(
+    qt.webChannelTransport,
+    function(channel) {
+        chartBridge = channel.objects.chartBridge;
+    }
+);
+
+The chart container handles pointer interaction.
+
+The chart click handler calls:
+
+chartBridge.chart_clicked();
+
+The chart mouse position is converted into a market timestamp.
+
+12. SOURCE CROSSHAIR POSITION
+The source chart converts the mouse X coordinate to chart-local coordinates.
+
+The market timestamp is obtained using:
+
+chart.timeScale()
+    .coordinateToTime(chartX);
+
+The important design decision is:
+
+X coordinate
+    ↓
+market timestamp
+
+The source chart's price is deliberately not used for positioning the crosshair on another instrument.
+
+13. DESTINATION CROSSHAIR FUNCTION
+The JavaScript function is:
+
+function syncCrosshairFromPython(
+    time
+)
+
+It first checks that chart data exists.
+
+It converts the incoming time:
+
+const targetTime =
+    Number(time);
+
+It verifies that the value is finite.
+
+Then it searches:
 
 currentDataTimes
 
-for the nearest timestamp.
+for the nearest candle timestamp.
 
-Then it retrieves that chart's own candle:
+The nearest candle is selected using the smallest absolute difference:
+
+abs(destination candle time - source time)
+
+Once the nearest candle is found:
 
 const candle =
     currentCandleData[
         nearestIndex
     ];
 
-and uses:
+The destination chart gets its own price:
 
-candle.close
+const price =
+    Number(candle.close);
 
-for that chart's crosshair price.
+This is the correct behavior for multi-instrument charts.
 
-So the intended behavior is:
+14. LIGHTWEIGHT CHARTS "VALUE IS NULL" PROBLEM
+During development, repeated JavaScript errors appeared:
 
-Chart 1
-timestamp = 10:35
-        │
-        ▼
-Chart 2 finds nearest 10:35 candle
-        │
-        ▼
-Chart 2 uses its own close price
+js: Uncaught Error: Value is null
 
-This is the correct architecture for multi-chart synchronization.
+The error happened while positioning the synchronized crosshair.
 
-15. Crosshair mouse-leave behavior
+The problematic operation was effectively:
 
-We also have:
+chart.setCrosshairPosition(
+    price,
+    nearestTime,
+    candleSeries
+);
 
-clearSyncedCrosshair()
+The important discovery was that having a valid candle timestamp does not guarantee that Lightweight Charts currently has a valid chart coordinate for that timestamp.
 
-and Python:
+Therefore:
 
-clear_synced_crosshair(
+chart.timeScale()
+    .timeToCoordinate(nearestTime)
+
+can return:
+
+null
+
+or:
+
+undefined
+
+15. FINAL FIX FOR "VALUE IS NULL"
+The synchronized crosshair code now validates the coordinate before calling setCrosshairPosition().
+
+Current logic:
+
+const coordinate =
+    chart.timeScale()
+        .timeToCoordinate(
+            nearestTime
+        );
+
+if (
+    coordinate === null ||
+    coordinate === undefined ||
+    !Number.isFinite(
+        Number(coordinate)
+    )
+) {
+    return;
+}
+
+Only after this validation:
+
+chart.setCrosshairPosition(
+    price,
+    nearestTime,
+    candleSeries
+);
+
+This fixed the repeated:
+
+Value is null
+
+errors.
+
+The application was run again after the fix and the errors disappeared.
+
+IMPORTANT
+Do not remove this coordinate validation.
+
+It is an important defensive check around Lightweight Charts.
+
+16. CROSSHAIR CLEARING
+When the mouse leaves the source chart, synchronized crosshairs are cleared.
+
+Python contains:
+
+def mouse_left(self):
+    self.parent.clear_synced_crosshair(
+        self.slot_id
+    )
+
+The dashboard has:
+
+def clear_synced_crosshair(
+    self,
     source_slot_id
-)
+):
 
-The intention is:
+JavaScript contains:
 
-Mouse leaves Chart 1
-        ↓
-Chart 2 / other charts
-        ↓
-Clear synchronized crosshair
-16. Issue encountered during crosshair development
+function clearSyncedCrosshair() {
+    if (
+        typeof chart.clearCrosshairPosition
+        === "function"
+    ) {
+        chart.clearCrosshairPosition();
+    }
+}
 
-During the crosshair changes, we temporarily added:
+This removes the synchronized crosshair from charts when appropriate.
 
-self.bridge.mouse_moved.connect(
-    self.market_mouse_moved
-)
+17. CANDLE SERIES
+The candlestick series is created with:
 
-but ChartSlot did not contain:
+LightweightCharts.CandlestickSeries
 
-market_mouse_moved()
+Current colors:
 
-This caused:
+Up candle:
+#26a69a
 
-AttributeError:
-'ChartSlot' object has no attribute 'market_mouse_moved'
+Down candle:
+#ef5350
 
-We subsequently removed that invalid connection.
+The corresponding borders and wicks use the same colors.
 
-You confirmed:
+The chart currently has:
 
-done working fine.
-
-The application is currently running again.
-
-17. Important current baseline
-
-At the moment, the safest known working baseline is:
-
-Application launches
-        ✓
-Chart slots work
-        ✓
-Chart selection works
-        ✓
-Active chart highlighting works
-        ✓
-Rectangle creation works
-        ✓
-Rectangle resizing works
-        ✓
-Rectangle deletion works
-        ✓
-Rectangle movement works
-        ✓
-Timeframe changes work
-        ✓
-Drawing preservation architecture exists
-        ✓
-QWebChannel exists
-        ✓
-Crosshair synchronization
-        → still being developed/tested
-18. Backup files
-
-We created:
-
-src/main_backup.py
-src/web/chart_test_backup.html
-
-Current verification showed:
-
-main.py
-    ==
-main_backup.py
+lastValueVisible: false
 
 and:
 
-chart_test.html
-    ==
-chart_test_backup.html
+priceLineVisible: false
 
-So these backups are currently snapshots of the same modified state, not an older clean version.
+18. DATA / TIMEFRAME ENGINE
+The Python timeframe engine is:
 
-This is important for future work: we should create a new dated/versioned backup before making the next significant change.
+def prepare_timeframe(
+    self,
+    df,
+    timeframe
+):
 
-For example:
+The dataframe is copied:
 
-src/backups/
+df = df.copy()
 
-could eventually contain:
+Empty data is handled:
 
-main_v001.py
-main_v002.py
-main_v003.py
+if df.empty:
+    return df
 
-chart_test_v001.html
-chart_test_v002.html
-chart_test_v003.html
+Timestamp conversion:
 
-That would be much safer than repeatedly overwriting main_backup.py.
+df["timestamp"] = pd.to_datetime(
+    df["timestamp"]
+)
 
-19. GitHub ScrapCodes
+Data is sorted chronologically:
 
-You also decided to maintain experimental/development code under:
+df.sort_values(
+    "timestamp"
+)
 
-Trading-Dashboard/
-└── ScrapCodes/
+and the index is reset.
 
-The purpose is to keep experimental code separate from the main production/application code.
+For:
 
-This is where we can put:
+1m
 
-ScrapCodes/
-├── experiments/
-├── backups/
-├── old_versions/
-├── chart_tests/
-└── notes/
+the dataframe is returned directly.
 
-as the project grows.
+19. DAILY TIMEFRAME
+For:
 
-We should not mix experimental files into src/ unless they become part of the actual application.
+1D
 
-20. Recommended development rule going forward
+data is grouped using:
 
-From this point, I recommend we use this workflow:
+df["timestamp"].dt.date
 
-1. Backup current working code
-        ↓
-2. Make ONE change
-        ↓
-3. py_compile / syntax check
-        ↓
-4. Run application
-        ↓
-5. Test
-        ↓
-6. Confirm working
-        ↓
-7. Commit to GitHub
-        ↓
-8. Move to next change
+Aggregation:
 
-Especially for main.py, we should avoid commands that rewrite the entire file unnecessarily because that caused the special-character/encoding problem earlier.
+Open  = first
+High  = max
+Low   = min
+Close = last
 
-Current milestone
-Milestone 1 — Multi-chart dashboard
+The resulting dataframe is returned as daily candles.
 
-Status: Working
+20. INTRADAY TIMEFRAMES
+Intraday aggregation uses the configured timeframe minutes.
 
-Milestone 2 — Interactive drawings
+The trading session begins at:
 
-Status: Working
+09:15
 
-Milestone 3 — Drawing persistence across timeframe changes
+The code calculates the number of minutes from the session start and uses that to determine the candle bucket.
 
-Status: Implemented
+The resulting candles are sorted/grouped chronologically.
 
-Milestone 4 — Crosshair synchronization
+21. CHART DATA TRANSFER
+Python builds candle dictionaries like:
 
-Status: In progress
+{
+    "time": int(
+        row["timestamp"].timestamp()
+    ),
+    "open": float(row["Open"]),
+    "high": float(row["High"]),
+    "low": float(row["Low"]),
+    "close": float(row["Close"]),
+}
 
-Milestone 5 — Production cleanup/versioned backups
+The candle list is sent to JavaScript through:
 
-Status: Not started
+setChartData(
+    json.dumps(candles),
+    json.dumps(slot.sheet)
+);
 
-Milestone 6 — GitHub cleanup/documentation
+The timestamp is currently represented as Unix seconds.
 
-Status: In progress
+22. IMPORTANT DATA OBSERVATION
+During investigation, searches were performed for:
+
+drop_duplicates
+isna
+isnull
+isfinite
+nan
+inf
+
+No corresponding dataframe-cleaning logic was found in the searched section.
+
+This was investigated while diagnosing the JavaScript "Value is null" errors.
+
+The final root cause was not bad candle data.
+
+The issue was the Lightweight Charts coordinate lookup returning null for a requested timestamp.
+
+Therefore the final fix was placed in the JavaScript crosshair synchronization logic rather than unnecessarily changing the dataframe pipeline.
+
+23. TEMPORARY DEBUGGING OUTPUT
+During development the following diagnostic messages were used:
+
+[ACTIVE] ChartSlot ...
+[CLICK] ChartSlot ...
+[MOUSE MOVED] ...
+[CROSSHAIR] ...
+
+These helped verify:
+
+active chart selection
+chart clicks
+mouse movement
+crosshair synchronization
+After functionality was verified, unnecessary terminal logging was removed.
+
+Normal startup should not continuously print these debugging messages.
+
+24. PYTHON SYNTAX VERIFICATION
+The following command was used successfully:
+
+python -m py_compile src\main.py
+
+Successful compilation produces no output.
+
+This should be run after Python changes.
+
+25. APPLICATION START COMMAND
+The normal application command is:
+
+python src\main.py
+
+The application was successfully launched after the final crosshair fix.
+
+The latest test produced no:
+
+js: Uncaught Error: Value is null
+
+messages.
+
+26. USEFUL POWERSHELL COMMANDS
+Search Python source:
+
+Select-String -Path src\main.py -Pattern "pattern" -Context 5,15
+
+Search JavaScript:
+
+Select-String -Path src\web\chart_test.html -Pattern "pattern" -Context 5,15
+
+Inspect a section:
+
+Get-Content src\web\chart_test.html | Select-Object -Skip <line> -First <count>
+
+Inspect Python section:
+
+Get-Content src\main.py | Select-Object -Skip <line> -First <count>
+
+Compile Python:
+
+python -m py_compile src\main.py
+
+Run application:
+
+python src\main.py
+
+27. DEVELOPMENT DOCUMENTS
+The project currently contains:
+
+DEVELOPMENT_PROGRESS.md
+sync_javascript.txt
+sync_python_sections.txt
+
+These files are intended to help maintain continuity between development sessions.
+
+DEVELOPMENT_PROGRESS.md should be updated after major milestones.
+
+28. IMPORTANT FUTURE-SESSION INSTRUCTIONS
+When continuing development, first assume the current crosshair implementation is a working baseline.
+
+Before changing it:
+
+Open the current source files.
+Check the existing implementation.
+Do not blindly replace working code.
+Preserve the timestamp-based synchronization architecture.
+Preserve nearest-candle matching.
+Preserve destination-chart-specific prices.
+Preserve timeToCoordinate() validation.
+Preserve crosshair clearing.
+Preserve multi-layout behavior.
+Preserve drawing functionality.
+Preserve timeframe functionality.
+If a new change causes an error, diagnose the exact existing flow before modifying unrelated code.
+
+29. BACKUP POLICY FOR FUTURE DEVELOPMENT
+Existing backups are:
+
+src\main_backup.py
+src\main_backup_20260813_071320.py
+
+src\web\chart_test_backup.html
+src\web\chart_test_backup_20260813_071320.html
+
+Do not create another backup simply because a new development session starts.
+
+Before a major change:
+
+1. Check current working code.
+2. Check existing backups.
+3. Check GitHub sync status.
+4. Make the change.
+5. Test.
+6. If successful, sync to GitHub when appropriate.
+
+30. CURRENT RECOVERY POINT
+The current project has three levels of protection:
+
+LEVEL 1
+Current working files
+
+D:\Coding\Trading-Dashboard\src\main.py
+D:\Coding\Trading-Dashboard\src\web\chart_test.html
+
+
+LEVEL 2
+Local backups
+
+D:\Coding\Trading-Dashboard\src\main_backup.py
+D:\Coding\Trading-Dashboard\src\main_backup_20260813_071320.py
+
+D:\Coding\Trading-Dashboard\src\web\chart_test_backup.html
+D:\Coding\Trading-Dashboard\src\web\chart_test_backup_20260813_071320.html
+
+
+LEVEL 3
+GitHub remote repository
+
+https://github.com/saishankar709-cmd/Trading-Dashboard
+
+The latest working code has been synced to GitHub.
+
+31. CURRENT MILESTONE
+MILESTONE: MULTI-CHART CROSSHAIR SYNCHRONIZATION
+STATUS: COMPLETE
+
+Completed functionality:
+
+Mouse crosshair works on source chart.
+Source chart determines market timestamp.
+Timestamp is sent through Python.
+Other visible charts receive the timestamp.
+Each destination chart finds its nearest candle.
+Each destination chart uses its own close price.
+Crosshair is positioned on destination charts.
+Different instruments can therefore synchronize correctly.
+Mouse leave clears synchronized crosshairs.
+Lightweight Charts null-coordinate issue is handled.
+"Value is null" errors are resolved.
+Temporary debug terminal messages have been removed.
+Python syntax has been verified.
+Application has been successfully executed.
+Local backups exist.
+Latest working code has been synced to GitHub.
+32. NEXT DEVELOPMENT SESSION
+Start from:
+
+D:\Coding\Trading-Dashboard
+
+Activate .venv if necessary:
+
+.\.venv\Scripts\Activate.ps1
+
+Then verify:
+
+python -m py_compile src\main.py
+
+Then run:
+
+python src\main.py
+
+First confirm:
+
+Application launches
+Charts load
+Multiple layouts work
+Chart selection works
+Crosshair works
+Crosshair synchronizes
+No "Value is null" errors
+
+Only after confirming the baseline should the next feature be implemented.
+
+33. GOLDEN RULE FOR THE NEXT SESSION
+The current crosshair synchronization implementation is a working baseline.
+
+Do not change the synchronization architecture unless the next requirement specifically requires it.
+
+The most important rule is:
+
+SOURCE CHART
+    ↓
+MARKET TIME ONLY
+    ↓
+DESTINATION CHART
+    ↓
+NEAREST LOCAL CANDLE
+    ↓
+LOCAL CLOSE PRICE
+    ↓
+VALIDATE timeToCoordinate()
+    ↓
+SET CROSSHAIR
+
+This design must remain intact unless there is a deliberate architectural reason to change it.
+
+34. PROJECT ROOT TO REMEMBER
+For all future local development work, the project root is:
+
+D:\Coding\Trading-Dashboard
+
+Main Python file:
+
+D:\Coding\Trading-Dashboard\src\main.py
+
+Main chart HTML:
+
+D:\Coding\Trading-Dashboard\src\web\chart_test.html
+
+Lightweight Charts library:
+
+D:\Coding\Trading-Dashboard\src\web\lightweight-charts.js
+
+Development notes:
+
+D:\Coding\Trading-Dashboard\DEVELOPMENT_PROGRESS.md
+
+Local Python backups:
+
+D:\Coding\Trading-Dashboard\src\main_backup.py
+D:\Coding\Trading-Dashboard\src\main_backup_20260813_071320.py
+
+Local JavaScript/HTML backups:
+
+D:\Coding\Trading-Dashboard\src\web\chart_test_backup.html
+D:\Coding\Trading-Dashboard\src\web\chart_test_backup_20260813_071320.html
+
+GitHub repository:
+
+https://github.com/saishankar709-cmd/Trading-Dashboard
+
+This document is the current development handoff/reference point for the Trading Dashboard project.
