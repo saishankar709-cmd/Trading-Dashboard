@@ -1,3 +1,309 @@
+# =========================================================
+# CHART LAYOUT DEFINITIONS
+# =========================================================
+#
+# position = (row, column, row_span, column_span)
+#
+# The layout IDs are deliberately unique. The number of
+# charts is stored separately as "count".
+# =========================================================
+
+LAYOUTS = {
+
+    # -----------------------------------------------------
+    # 1 CHART
+    # -----------------------------------------------------
+
+    "1_full": {
+        "count": 1,
+        "rows": 1,
+        "cols": 1,
+        "positions": [
+            (0, 0, 1, 1),
+        ],
+    },
+
+    # -----------------------------------------------------
+    # 2 CHARTS
+    # -----------------------------------------------------
+
+    "2_horizontal": {
+        "count": 2,
+        "rows": 1,
+        "cols": 2,
+        "positions": [
+            (0, 0, 1, 1),
+            (0, 1, 1, 1),
+        ],
+    },
+
+    "2_vertical": {
+        "count": 2,
+        "rows": 2,
+        "cols": 1,
+        "positions": [
+            (0, 0, 1, 1),
+            (1, 0, 1, 1),
+        ],
+    },
+
+    # -----------------------------------------------------
+    # 3 CHARTS
+    # -----------------------------------------------------
+
+    "3_horizontal": {
+        "count": 3,
+        "rows": 1,
+        "cols": 3,
+        "positions": [
+            (0, 0, 1, 1),
+            (0, 1, 1, 1),
+            (0, 2, 1, 1),
+        ],
+    },
+
+    "3_vertical": {
+        "count": 3,
+        "rows": 3,
+        "cols": 1,
+        "positions": [
+            (0, 0, 1, 1),
+            (1, 0, 1, 1),
+            (2, 0, 1, 1),
+        ],
+    },
+
+    "3_large_left": {
+        "count": 3,
+        "rows": 2,
+        "cols": 2,
+        "positions": [
+            (0, 0, 2, 1),
+            (0, 1, 1, 1),
+            (1, 1, 1, 1),
+        ],
+    },
+
+    "3_large_right": {
+        "count": 3,
+        "rows": 2,
+        "cols": 2,
+        "positions": [
+            (0, 0, 1, 1),
+            (1, 0, 1, 1),
+            (0, 1, 2, 1),
+        ],
+    },
+
+    "3_large_bottom": {
+        "count": 3,
+        "rows": 2,
+        "cols": 2,
+        "positions": [
+            (0, 0, 1, 1),
+            (0, 1, 1, 1),
+            (1, 0, 1, 2),
+        ],
+    },
+
+    "3_large_top": {
+        "count": 3,
+        "rows": 2,
+        "cols": 2,
+        "positions": [
+            (0, 0, 1, 2),
+            (1, 0, 1, 1),
+            (1, 1, 1, 1),
+        ],
+    },
+
+    # -----------------------------------------------------
+    # 4 CHARTS
+    # -----------------------------------------------------
+
+    "4_grid": {
+        "count": 4,
+        "rows": 2,
+        "cols": 2,
+        "positions": [
+            (0, 0, 1, 1),
+            (0, 1, 1, 1),
+            (1, 0, 1, 1),
+            (1, 1, 1, 1),
+        ],
+    },
+
+    "4_horizontal": {
+        "count": 4,
+        "rows": 1,
+        "cols": 4,
+        "positions": [
+            (0, 0, 1, 1),
+            (0, 1, 1, 1),
+            (0, 2, 1, 1),
+            (0, 3, 1, 1),
+        ],
+    },
+
+    "4_vertical": {
+        "count": 4,
+        "rows": 4,
+        "cols": 1,
+        "positions": [
+            (0, 0, 1, 1),
+            (1, 0, 1, 1),
+            (2, 0, 1, 1),
+            (3, 0, 1, 1),
+        ],
+    },
+
+    "4_large_left": {
+        "count": 4,
+        "rows": 3,
+        "cols": 2,
+        "positions": [
+            (0, 0, 3, 1),
+            (0, 1, 1, 1),
+            (1, 1, 1, 1),
+            (2, 1, 1, 1),
+        ],
+    },
+
+    "4_large_right": {
+        "count": 4,
+        "rows": 3,
+        "cols": 2,
+        "positions": [
+            (0, 0, 1, 1),
+            (1, 0, 1, 1),
+            (2, 0, 1, 1),
+            (0, 1, 3, 1),
+        ],
+    },
+
+    "4_large_top": {
+        "count": 4,
+        "rows": 2,
+        "cols": 3,
+        "positions": [
+            (0, 0, 1, 3),
+            (1, 0, 1, 1),
+            (1, 1, 1, 1),
+            (1, 2, 1, 1),
+        ],
+    },
+
+    "4_large_bottom": {
+        "count": 4,
+        "rows": 2,
+        "cols": 3,
+        "positions": [
+            (0, 0, 1, 1),
+            (0, 1, 1, 1),
+            (0, 2, 1, 1),
+            (1, 0, 1, 3),
+        ],
+    },
+
+    # -----------------------------------------------------
+    # 5 CHARTS
+    # -----------------------------------------------------
+
+    "5_horizontal": {
+        "count": 5,
+        "rows": 1,
+        "cols": 5,
+        "positions": [
+            (0, 0, 1, 1),
+            (0, 1, 1, 1),
+            (0, 2, 1, 1),
+            (0, 3, 1, 1),
+            (0, 4, 1, 1),
+        ],
+    },
+
+    "5_two_three": {
+        "count": 5,
+        "rows": 2,
+        "cols": 6,
+        "positions": [
+            (0, 0, 1, 3),
+            (0, 3, 1, 3),
+            (1, 0, 1, 2),
+            (1, 2, 1, 2),
+            (1, 4, 1, 2),
+        ],
+    },
+
+    # -----------------------------------------------------
+    # 6 CHARTS
+    # -----------------------------------------------------
+
+    "6_grid": {
+        "count": 6,
+        "rows": 2,
+        "cols": 3,
+        "positions": [
+            (0, 0, 1, 1),
+            (0, 1, 1, 1),
+            (0, 2, 1, 1),
+            (1, 0, 1, 1),
+            (1, 1, 1, 1),
+            (1, 2, 1, 1),
+        ],
+    },
+
+    "6_horizontal": {
+        "count": 6,
+        "rows": 1,
+        "cols": 6,
+        "positions": [
+            (0, 0, 1, 1),
+            (0, 1, 1, 1),
+            (0, 2, 1, 1),
+            (0, 3, 1, 1),
+            (0, 4, 1, 1),
+            (0, 5, 1, 1),
+        ],
+    },
+
+    # -----------------------------------------------------
+    # 8 CHARTS
+    # -----------------------------------------------------
+
+    "8_grid": {
+        "count": 8,
+        "rows": 2,
+        "cols": 4,
+        "positions": [
+            (0, 0, 1, 1),
+            (0, 1, 1, 1),
+            (0, 2, 1, 1),
+            (0, 3, 1, 1),
+            (1, 0, 1, 1),
+            (1, 1, 1, 1),
+            (1, 2, 1, 1),
+            (1, 3, 1, 1),
+        ],
+    },
+
+    "8_horizontal": {
+        "count": 8,
+        "rows": 1,
+        "cols": 8,
+        "positions": [
+            (0, 0, 1, 1),
+            (0, 1, 1, 1),
+            (0, 2, 1, 1),
+            (0, 3, 1, 1),
+            (0, 4, 1, 1),
+            (0, 5, 1, 1),
+            (0, 6, 1, 1),
+            (0, 7, 1, 1),
+        ],
+    },
+}
+
 import math
 import json
 import sys
@@ -6,6 +312,7 @@ from pathlib import Path
 import pandas as pd
 
 from PySide6.QtWebChannel import QWebChannel
+
 from PySide6.QtCore import (
     QDate,
     QUrl,
@@ -13,7 +320,15 @@ from PySide6.QtCore import (
     Signal,
     QObject,
     Slot,
+    QSize,
 )
+
+from PySide6.QtGui import (
+    QPainter,
+    QPen,
+    QColor,
+)
+
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -31,6 +346,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QToolButton,
+    QWidgetAction,
+    QFrame,
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from data.excel_loader import load_sheet
@@ -101,6 +418,287 @@ class ClickableChartView(QWebEngineView):
         self.mouse_left.emit()
         super().leaveEvent(event)
 
+# =========================================================
+# LAYOUT ICON
+# =========================================================
+
+class LayoutIconButton(QPushButton):
+
+    clicked_layout = Signal(str)
+
+    def __init__(
+        self,
+        layout_id,
+        selected=False,
+        parent=None
+    ):
+
+        super().__init__(parent)
+
+        self.layout_id = layout_id
+        self.selected = selected
+
+        self.setFixedSize(
+            34,
+            28
+        )
+
+        self.setCursor(
+            Qt.PointingHandCursor
+        )
+
+        self.setStyleSheet(
+            """
+            QPushButton {
+                border: none;
+                background: transparent;
+                padding: 0px;
+            }
+
+            QPushButton:hover {
+                background: #e8f5e9;
+            }
+            """
+        )
+
+        self.clicked.connect(
+            lambda:
+            self.clicked_layout.emit(
+                self.layout_id
+            )
+        )
+
+    def set_selected(
+        self,
+        selected
+    ):
+
+        self.selected = selected
+        self.update()
+
+    def paintEvent(
+        self,
+        event
+    ):
+
+        painter = QPainter(
+            self
+        )
+
+        painter.setRenderHint(
+            QPainter.Antialiasing
+        )
+
+        if self.selected:
+
+            painter.setPen(
+                Qt.NoPen
+            )
+
+            painter.setBrush(
+                QColor(
+                    "#b7f7d0"
+                )
+            )
+
+            painter.drawRoundedRect(
+                1,
+                1,
+                self.width() - 2,
+                self.height() - 2,
+                3,
+                3
+            )
+
+        layout = LAYOUTS[
+            self.layout_id
+        ]
+
+        rows = layout["rows"]
+        cols = layout["cols"]
+
+        positions = layout[
+            "positions"
+        ]
+
+        pen = QPen(
+            QColor(
+                "#30343b"
+            )
+        )
+
+        pen.setWidth(
+            1
+        )
+
+        painter.setPen(
+            pen
+        )
+
+        painter.setBrush(
+            QColor(
+                "#ffffff"
+            )
+        )
+
+        margin = 6
+
+        width = (
+            self.width()
+            - margin * 2
+        )
+
+        height = (
+            self.height()
+            - margin * 2
+        )
+
+        for (
+            row,
+            col,
+            row_span,
+            col_span
+        ) in positions:
+
+            x = (
+                margin
+                +
+                width
+                * col
+                / cols
+            )
+
+            y = (
+                margin
+                +
+                height
+                * row
+                / rows
+            )
+
+            w = (
+                width
+                * col_span
+                / cols
+            )
+
+            h = (
+                height
+                * row_span
+                / rows
+            )
+
+            painter.drawRect(
+                int(x),
+                int(y),
+                max(
+                    1,
+                    int(w)
+                ),
+                max(
+                    1,
+                    int(h)
+                )
+            )
+
+# =========================================================
+# LAYOUT MENU ROW
+# =========================================================
+
+class LayoutMenuRow(QWidget):
+
+    def __init__(
+        self,
+        dashboard,
+        count,
+        layout_ids,
+        parent=None
+    ):
+
+        super().__init__(
+            parent
+        )
+
+        self.dashboard = dashboard
+        self.count = count
+        self.buttons = {}
+
+        layout = QHBoxLayout(
+            self
+        )
+
+        layout.setContentsMargins(
+            4,
+            2,
+            8,
+            2
+        )
+
+        layout.setSpacing(
+            2
+        )
+
+        label = QLabel(
+            str(count)
+        )
+
+        label.setFixedWidth(
+            16
+        )
+
+        label.setAlignment(
+            Qt.AlignCenter
+        )
+
+        label.setStyleSheet(
+            """
+            QLabel {
+                color: #7a7f87;
+                font-size: 11px;
+                background: transparent;
+            }
+            """
+        )
+
+        layout.addWidget(
+            label
+        )
+
+        for layout_id in layout_ids:
+
+            button = LayoutIconButton(
+                layout_id,
+                selected=(
+                    layout_id
+                    ==
+                    dashboard.current_layout
+                )
+            )
+
+            button.clicked_layout.connect(
+                self.layout_selected
+            )
+
+            self.buttons[
+                layout_id
+            ] = button
+
+            layout.addWidget(
+                button
+            )
+
+        layout.addStretch()
+
+    def layout_selected(
+        self,
+        layout_id
+    ):
+
+        self.dashboard.set_layout(
+            layout_id
+        )
+
+        self.dashboard.layouts_menu.close()
 
 # =========================================================
 # CHART SLOT
@@ -608,9 +1206,117 @@ class PopupChartWindow(QMainWindow):
             5
         )
 
+        # =================================================
+        # POPUP SYMBOL
+        # =================================================
+
+        toolbar_layout.addWidget(
+            QLabel("Symbol:")
+        )
+
+        self.symbol_combo = QComboBox()
+
+        self.symbol_combo.setFixedWidth(
+            130
+        )
+
+        self.symbol_combo.setFixedHeight(
+            27
+        )
+
+        self.symbol_combo.addItems(
+            self.dashboard.sheet_names
+        )
+
+        if self.symbol in self.dashboard.sheet_names:
+
+            self.symbol_combo.setCurrentText(
+                self.symbol
+            )
+
+        self.symbol_combo.currentTextChanged.connect(
+            self.symbol_changed
+        )
+
+        toolbar_layout.addWidget(
+            self.symbol_combo
+        )
+
+        # =================================================
+        # POPUP TIMEFRAME
+        # =================================================
+
+        toolbar_layout.addWidget(
+            QLabel("TF:")
+        )
+
+        self.timeframe_buttons = {}
+
+        for label, minutes in TIMEFRAMES:
+
+            button = QPushButton(
+                label
+            )
+
+            button.setCheckable(
+                True
+            )
+
+            button.setFixedHeight(
+                27
+            )
+
+            button.setMinimumWidth(
+                38
+            )
+
+            button.setChecked(
+                label == self.timeframe
+            )
+
+            self.timeframe_buttons[
+                label
+            ] = button
+
+            toolbar_layout.addWidget(
+                button
+            )
+
+            button.clicked.connect(
+                lambda checked=False,
+                tf=label:
+                self.change_timeframe(
+                    tf
+                )
+            )
+
+        toolbar_layout.addSpacing(
+            5
+        )
+
+        # =================================================
+        # TITLE
+        # =================================================
+
         self.title_label = QLabel(
             f"{self.symbol} • {self.timeframe}"
         )
+
+        self.title_label.setStyleSheet(
+            """
+            QLabel {
+                color: #333333;
+                font-size: 11px;
+                font-weight: 600;
+            }
+            """
+        )
+
+        toolbar_layout.addWidget(
+            self.title_label
+        )
+
+        toolbar_layout.addStretch()
 
         self.title_label.setStyleSheet(
             """
@@ -950,7 +1656,105 @@ class PopupChartWindow(QMainWindow):
 
         event.accept()
 
+    # =====================================================
+    # POPUP SYMBOL CHANGE
+    # =====================================================
 
+    def symbol_changed(
+        self,
+        symbol
+    ):
+
+        if not symbol:
+            return
+
+        if symbol not in self.dashboard.sheet_names:
+            return
+
+        self.symbol = symbol
+        self.sheet = symbol
+
+        self.update_header()
+
+        self.dashboard.refresh_popup(
+            self
+        )
+
+    # =====================================================
+    # POPUP TIMEFRAME CHANGE
+    # =====================================================
+
+    def change_timeframe(
+        self,
+        timeframe
+    ):
+
+        if timeframe not in dict(
+            TIMEFRAMES
+        ):
+            return
+
+        self.timeframe = timeframe
+
+        for label, button in (
+            self.timeframe_buttons.items()
+        ):
+
+            button.setChecked(
+                label == timeframe
+            )
+
+        self.update_header()
+
+        self.dashboard.refresh_popup(
+            self
+        )
+
+    # =====================================================
+    # UPDATE POPUP SYMBOL LIST
+    # =====================================================
+
+    def update_symbol_list(
+        self
+    ):
+
+        current_symbol = self.symbol
+
+        self.symbol_combo.blockSignals(
+            True
+        )
+
+        self.symbol_combo.clear()
+
+        self.symbol_combo.addItems(
+            self.dashboard.sheet_names
+        )
+
+        if current_symbol in (
+            self.dashboard.sheet_names
+        ):
+
+            self.symbol_combo.setCurrentText(
+                current_symbol
+            )
+
+        elif self.dashboard.sheet_names:
+
+            self.symbol = (
+                self.dashboard.sheet_names[0]
+            )
+
+            self.sheet = self.symbol
+
+            self.symbol_combo.setCurrentText(
+                self.symbol
+            )
+
+        self.symbol_combo.blockSignals(
+            False
+        )
+
+        self.update_header()
 # =========================================================
 # MAIN WINDOW
 # =========================================================
@@ -984,7 +1788,7 @@ class TradingDashboard(
 
         self.active_slot_id = 0
 
-        self.current_layout = 1
+        self.current_layout = "1_full"
 
         self.sheet_names = []
 
@@ -995,12 +1799,8 @@ class TradingDashboard(
         # -------------------------------------------------
 
         self.layout_sync_enabled = {
-            1: True,
-            2: True,
-            3: True,
-            4: True,
-            6: True,
-            8: True,
+            layout_id: True
+            for layout_id in LAYOUTS
         }
 
         # -------------------------------------------------
@@ -1059,15 +1859,8 @@ class TradingDashboard(
 
         self.symbol_combo = QComboBox()
 
-        self.symbol_combo.addItems(
-            [
-                "NIFTY",
-                "SENSEX",
-            ]
-        )
-
         self.symbol_combo.setFixedWidth(
-            95
+            130
         )
 
         self.symbol_combo.setFixedHeight(
@@ -1265,6 +2058,10 @@ class TradingDashboard(
         # LAYOUTS MENU
         # =================================================
 
+        # =================================================
+        # LAYOUTS MENU
+        # =================================================
+
         self.layouts_button = QPushButton(
             "Layouts ▾"
         )
@@ -1281,48 +2078,97 @@ class TradingDashboard(
             self
         )
 
-        layout_options = [
-            (
-                "▣  1 Chart",
-                1
-            ),
-            (
-                "▥  2 Charts",
-                2
-            ),
-            (
-                "▦  3 Charts",
-                3
-            ),
-            (
-                "▦  4 Charts",
-                4
-            ),
-            (
-                "▦  6 Charts",
-                6
-            ),
-            (
-                "▦  8 Charts",
-                8
-            ),
-        ]
+        self.layouts_menu.setStyleSheet(
+            """
+            QMenu {
+                background: #ffffff;
+                border: 1px solid #d5d8dc;
+                padding: 4px;
+            }
 
-        for label, count in layout_options:
+            QMenu::separator {
+                height: 1px;
+                background: #e5e7eb;
+                margin: 2px 4px;
+            }
+            """
+        )
 
-            action = (
-                self.layouts_menu.addAction(
-                    label
-                )
+        layout_groups = {
+            1: [
+                "1_full",
+            ],
+
+            2: [
+                "2_horizontal",
+                "2_vertical",
+            ],
+
+            3: [
+                "3_horizontal",
+                "3_vertical",
+                "3_large_left",
+                "3_large_right",
+                "3_large_top",
+                "3_large_bottom",
+            ],
+
+            4: [
+                "4_grid",
+                "4_horizontal",
+                "4_vertical",
+                "4_large_left",
+                "4_large_right",
+                "4_large_top",
+                "4_large_bottom",
+            ],
+
+            5: [
+                "5_horizontal",
+                "5_two_three",
+            ],
+
+            6: [
+                "6_grid",
+                "6_horizontal",
+            ],
+
+            8: [
+                "8_grid",
+                "8_horizontal",
+            ],
+        }
+
+        for index, (
+            count,
+            layout_ids
+        ) in enumerate(
+            layout_groups.items()
+        ):
+
+            row_widget = LayoutMenuRow(
+                self,
+                count,
+                layout_ids
             )
 
-            action.triggered.connect(
-                lambda checked=False,
-                layout_count=count:
-                self.set_layout(
-                    layout_count
-                )
+            action = QWidgetAction(
+                self.layouts_menu
             )
+
+            action.setDefaultWidget(
+                row_widget
+            )
+
+            self.layouts_menu.addAction(
+                action
+            )
+
+            if index < (
+                len(layout_groups) - 1
+            ):
+
+                self.layouts_menu.addSeparator()
 
         self.layouts_button.setMenu(
             self.layouts_menu
@@ -1602,7 +2448,7 @@ class TradingDashboard(
         # =================================================
 
         self.set_layout(
-            1
+            "1_full"
         )
 
         # =================================================
@@ -1672,6 +2518,37 @@ class TradingDashboard(
 
             self.sheet_names = list(
                 excel_file.sheet_names
+            )
+
+            # -------------------------------------------------
+            # UPDATE SYMBOL DROPDOWN
+            # -------------------------------------------------
+
+            self.symbol_combo.blockSignals(
+                True
+            )
+
+            self.symbol_combo.clear()
+
+            self.symbol_combo.addItems(
+                self.sheet_names
+            )
+
+            # -------------------------------------------------
+            # UPDATE OPEN POPUP SYMBOL LISTS
+            # -------------------------------------------------
+
+            for popup in list(
+                self.popup_windows
+            ):
+
+                if popup.closing:
+                    continue
+
+                popup.update_symbol_list()
+
+            self.symbol_combo.blockSignals(
+                False
             )
 
             self.sheet_list.clear()
@@ -2550,15 +3427,26 @@ class TradingDashboard(
     # VISIBLE SLOTS
     # =====================================================
 
-    def visible_slot_ids(self):
+    def visible_slot_ids(
+        self
+    ):
 
-        count = (
+        layout = LAYOUTS.get(
             self.current_layout
         )
 
+        if not layout:
+            return []
+
         return list(
-            range(count)
+            range(
+                layout["count"]
+            )
         )
+
+    # =====================================================
+    # LAYOUT ENGINE
+    # =====================================================
 
     # =====================================================
     # LAYOUT ENGINE
@@ -2566,25 +3454,37 @@ class TradingDashboard(
 
     def set_layout(
         self,
-        layout_count
+        layout_id
     ):
 
-        if layout_count not in [
-            1,
-            2,
-            3,
-            4,
-            6,
-            8
-        ]:
-
+        if layout_id not in LAYOUTS:
             return
 
         self.current_layout = (
-            layout_count
+            layout_id
         )
 
         self.update_mouse_sync_button()
+
+        layout_config = LAYOUTS[
+            layout_id
+        ]
+
+        rows = layout_config[
+            "rows"
+        ]
+
+        cols = layout_config[
+            "cols"
+        ]
+
+        positions = layout_config[
+            "positions"
+        ]
+
+        chart_count = layout_config[
+            "count"
+        ]
 
         # -------------------------------------------------
         # REMOVE EXISTING WIDGETS
@@ -2608,82 +3508,6 @@ class TradingDashboard(
                 widget.hide()
 
         # -------------------------------------------------
-        # LAYOUT GEOMETRY
-        # -------------------------------------------------
-
-        if layout_count == 1:
-
-            rows = 1
-            cols = 1
-
-            positions = [
-                (0, 0, 1, 1)
-            ]
-
-        elif layout_count == 2:
-
-            rows = 1
-            cols = 2
-
-            positions = [
-                (0, 0, 1, 1),
-                (0, 1, 1, 1),
-            ]
-
-        elif layout_count == 3:
-
-            rows = 2
-            cols = 2
-
-            positions = [
-                (0, 0, 1, 2),
-                (1, 0, 1, 1),
-                (1, 1, 1, 1),
-            ]
-
-        elif layout_count == 4:
-
-            rows = 2
-            cols = 2
-
-            positions = [
-                (0, 0, 1, 1),
-                (0, 1, 1, 1),
-                (1, 0, 1, 1),
-                (1, 1, 1, 1),
-            ]
-
-        elif layout_count == 6:
-
-            rows = 2
-            cols = 3
-
-            positions = [
-                (0, 0, 1, 1),
-                (0, 1, 1, 1),
-                (0, 2, 1, 1),
-                (1, 0, 1, 1),
-                (1, 1, 1, 1),
-                (1, 2, 1, 1),
-            ]
-
-        else:
-
-            rows = 2
-            cols = 4
-
-            positions = [
-                (0, 0, 1, 1),
-                (0, 1, 1, 1),
-                (0, 2, 1, 1),
-                (0, 3, 1, 1),
-                (1, 0, 1, 1),
-                (1, 1, 1, 1),
-                (1, 2, 1, 1),
-                (1, 3, 1, 1),
-            ]
-
-        # -------------------------------------------------
         # CLEAR STRETCH
         # -------------------------------------------------
 
@@ -2702,7 +3526,7 @@ class TradingDashboard(
             )
 
         # -------------------------------------------------
-        # ADD SLOTS
+        # ADD CHARTS
         # -------------------------------------------------
 
         for index, position in enumerate(
@@ -2754,7 +3578,7 @@ class TradingDashboard(
 
         if (
             self.active_slot_id
-            >= layout_count
+            >= chart_count
         ):
 
             self.active_slot_id = 0
@@ -2777,10 +3601,12 @@ class TradingDashboard(
 
         self.status_label.setText(
             f"Layout: "
-            f"{layout_count} chart"
-            f"{'s' if layout_count != 1 else ''}"
+            f"{layout_id}"
+            f" • "
+            f"{chart_count} charts"
             f" • Active: "
-            f"Chart {self.active_slot_id + 1}"
+            f"Chart "
+            f"{self.active_slot_id + 1}"
         )
 
     # =====================================================
@@ -2899,21 +3725,6 @@ class TradingDashboard(
         source_slot
     ):
 
-        for popup in self.popup_windows:
-
-            if (
-                not popup.closing
-                and
-                popup.source_slot
-                is
-                source_slot
-            ):
-
-                popup.raise_()
-                popup.activateWindow()
-
-                return
-
         popup = PopupChartWindow(
             self,
             source_slot
@@ -2924,7 +3735,6 @@ class TradingDashboard(
         )
 
         popup.show()
-
         popup.raise_()
         popup.activateWindow()
 
@@ -2974,7 +3784,12 @@ class TradingDashboard(
                 popup.sheet
             )
 
-        except Exception:
+        except Exception as exc:
+
+            print(
+                f"[POPUP DATA ERROR] "
+                f"{popup.sheet}: {exc}"
+            )
 
             popup.browser.page().runJavaScript(
                 "clearChartData();"
@@ -2982,13 +3797,27 @@ class TradingDashboard(
 
             return
 
-        chart_data = (
-            self.prepare_timeframe(
-                chart_data,
-                popup.timeframe
+        try:
+            chart_data = (
+                self.prepare_timeframe(
+                    chart_data,
+                    popup.timeframe
+                )
             )
-        )
 
+        except Exception as exc:
+        
+                    print(
+                        f"[POPUP DATA ERROR] "
+                        f"{popup.sheet}: {exc}"
+                    )
+        
+                    popup.browser.page().runJavaScript(
+                        "clearChartData();"
+                    )
+        
+                    return
+        
         candles = []
 
         for _, row in (
@@ -3057,6 +3886,26 @@ class TradingDashboard(
         )
 
         popup.update_header()
+
+    # =====================================================
+# CLOSE MAIN WINDOW
+# =====================================================
+
+def closeEvent(self, event):
+
+    # Close every popup owned by the dashboard
+    for popup in list(self.popup_windows):
+
+        try:
+            popup.closing = True
+            popup.close()
+        except Exception:
+            pass
+
+    self.popup_windows.clear()
+
+    event.accept()
+    
 # =========================================================
 # APPLICATION ENTRY
 # =========================================================
