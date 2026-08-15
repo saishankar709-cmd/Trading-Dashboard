@@ -846,3 +846,297 @@ GitHub repository:
 https://github.com/saishankar709-cmd/Trading-Dashboard
 
 This document is the current development handoff/reference point for the Trading Dashboard project.
+--------------------------------------------------------------------------------------------------------------------------------------------
+15-Aug-2026  Requirement for popup.
+
+# Popup Chart & Mouse Hover Synchronization
+
+## Objective
+
+Implement a popup-chart functionality in the Trading Dashboard that allows any chart from the main window to be opened in an independent popup window while preserving all existing chart, drawing, resizing, timeframe, and crosshair functionality.
+
+The existing working chart architecture and current crosshair synchronization must remain stable and must not be rewritten unnecessarily.
+
+## Functional Requirements
+
+### 1. Open Chart in Popup
+
+* Every chart in the main dashboard must provide an option to open that chart in a separate popup window.
+* The popup must use the existing chart implementation and chart engine.
+* The popup must retain the same:
+
+  * Instrument/symbol
+  * Timeframe
+  * OHLC/candle data
+  * Chart configuration
+  * Drawing tools
+  * Crosshair functionality
+
+### 2. Popup Chart Resizing
+
+* The popup window must be freely resizable.
+* The chart must automatically resize with the popup window.
+* Candles, axes, crosshair, and drawing canvas must correctly adapt to the new dimensions.
+* Existing drawing resize/redraw functionality must continue to work without distortion or loss of drawings.
+
+### 3. Popup Drawing Functionality
+
+Every popup chart must support the same drawing functionality available in the main dashboard, including:
+
+* Trend line
+* Horizontal line
+* Vertical line
+* Rectangle
+* Drawing movement
+* Drawing resizing
+* Drawing deletion
+
+Drawings must continue to use market coordinates (`time` and `price`) rather than screen coordinates.
+
+Changing the popup size or timeframe must not cause drawings to disappear or become permanently misaligned.
+
+### 4. Popup Drawing Independence
+
+Each popup must maintain its own chart/drawing state.
+
+For the initial implementation:
+
+```text
+Main Chart
+    └── Own drawings
+
+Popup Chart
+    └── Own drawings
+```
+
+Drawing changes made inside a popup must not unintentionally modify drawings on the original main-window chart.
+
+Crosshair synchronization and drawing synchronization must remain separate concerns.
+
+### 5. Main Window ↔ Popup Mouse Hover Synchronization
+
+Mouse-hover crosshair synchronization must work in both directions.
+
+Example:
+
+```text
+Main Chart
+    ↓
+Market Timestamp
+    ↓
+Popup Chart
+```
+
+and:
+
+```text
+Popup Chart
+    ↓
+Market Timestamp
+    ↓
+Main Charts
+```
+
+Only the market timestamp must be synchronized.
+
+Each destination chart must independently locate its nearest candle and use its own local price/close value.
+
+The existing timestamp-based synchronization architecture must be preserved.
+
+### 6. Central Crosshair Synchronization
+
+Introduce a central synchronization mechanism that can manage both:
+
+* Main-window chart instances
+* Popup chart instances
+
+The synchronization manager must know:
+
+* Which charts are currently active/visible
+* Which popup windows are open
+* Whether synchronization is enabled for each layout
+* Whether synchronization is enabled for each popup
+
+Closed popup windows must be removed from the synchronization registry so that no synchronization calls are sent to destroyed charts.
+
+### 7. Layout-Level Mouse Sync Toggle
+
+Each dashboard layout must have its own Mouse Sync ON/OFF setting.
+
+Example:
+
+```text
+Layout 1 → ON
+Layout 2 → OFF
+Layout 3 → ON
+Layout 4 → ON
+Layout 6 → OFF
+Layout 8 → ON
+```
+
+When Mouse Sync is OFF for the active layout:
+
+* Hovering one main-window chart must not synchronize the crosshair to other charts.
+* The source chart must continue to display its own crosshair normally.
+
+Changing layouts must not unexpectedly reset the configured synchronization state.
+
+### 8. Popup-Level Mouse Sync Toggle
+
+Every popup window must have its own Mouse Sync ON/OFF control.
+
+Example:
+
+```text
+Popup 1 → ON
+Popup 2 → OFF
+Popup 3 → ON
+```
+
+When a popup's Mouse Sync is ON:
+
+```text
+Main Chart ↔ Popup
+```
+
+crosshair synchronization is allowed.
+
+When a popup's Mouse Sync is OFF:
+
+```text
+Popup
+  ↓
+Popup only
+```
+
+The popup must continue displaying its own local crosshair, but it must not send or receive synchronized crosshair updates.
+
+### 9. Synchronization Rules
+
+The synchronization flow must remain:
+
+```text
+Source Chart
+    ↓
+Market Timestamp
+    ↓
+Synchronization Manager
+    ↓
+Destination Chart
+    ↓
+Nearest Local Candle
+    ↓
+Destination's Own Price
+    ↓
+Crosshair
+```
+
+Price values must never be copied from the source chart to another instrument.
+
+For example:
+
+```text
+NIFTY Chart
+    ↓
+Timestamp = T
+    ↓
+BANKNIFTY Chart
+    ↓
+Find nearest BANKNIFTY candle at T
+    ↓
+Use BANKNIFTY's own close
+```
+
+### 10. Existing Crosshair Safety
+
+The existing protection around:
+
+```javascript
+timeToCoordinate()
+```
+
+must be preserved.
+
+If `timeToCoordinate()` returns `null` or `undefined`, the application must not call `setCrosshairPosition()` with invalid coordinates.
+
+The existing error-handling/safety logic that prevents:
+
+```text
+Uncaught Error: Value is null
+```
+
+must not be removed or weakened.
+
+### 11. Existing Functionality Must Remain Unchanged
+
+The implementation must not break any currently working functionality, including:
+
+* Main dashboard layouts
+* Chart loading
+* Instrument selection
+* Timeframe selection
+* Candle aggregation
+* Chart resizing
+* Chart selection
+* Crosshair synchronization
+* Drawing creation
+* Drawing movement
+* Drawing resizing
+* Drawing deletion
+* Existing `ChartSlot` behavior
+
+The popup functionality must be implemented as an extension of the current architecture rather than as a replacement for the existing chart system.
+
+## Expected Final Behavior
+
+The final system should support:
+
+```text
+                    TRADING DASHBOARD
+                           │
+              ┌────────────┴────────────┐
+              │                         │
+         MAIN WINDOW                POPUPS
+              │                         │
+       ┌──────┼──────┐            ┌────┼────┐
+       │      │      │            │    │    │
+     Chart  Chart  Chart        P1   P2   P3
+       │      │      │            │    │    │
+       └──────┼──────┘            └────┼────┘
+              │                         │
+              └──────────┬──────────────┘
+                         │
+                  CROSSHAIR SYNC
+                         │
+                 TIMESTAMP ONLY
+```
+
+Each layout and popup independently controls whether mouse-hover synchronization is enabled.
+
+All charts remain fully functional independently, while synchronized charts share only the market timestamp and calculate their own local crosshair price.
+
+## Acceptance Criteria
+
+The requirement is considered complete when:
+
+* Any main-window chart can be opened in a popup.
+* Multiple popups can exist simultaneously.
+* Popup windows can be freely resized.
+* Charts automatically resize correctly inside popups.
+* Existing drawing tools work inside popups.
+* Drawings can be moved, resized, and deleted inside popups.
+* Popup resizing does not destroy drawings.
+* Main charts can synchronize their crosshair with popups.
+* Popups can synchronize their crosshair with main charts.
+* Synchronization works in both directions.
+* Layout-level Mouse Sync can be switched ON/OFF.
+* Popup-level Mouse Sync can be switched ON/OFF.
+* Turning synchronization OFF leaves the local chart crosshair working.
+* Different instruments use their own local candle prices.
+* Closing a popup removes it safely from synchronization.
+* No `Value is null` crosshair errors are introduced.
+* All existing functionality continues to work exactly as before.
+
+**Implementation principle:** preserve the current working Trading Dashboard architecture and add popup functionality and synchronization capabilities around it without destabilizing the existing chart, drawing, timeframe, and crosshair systems.
+
+
