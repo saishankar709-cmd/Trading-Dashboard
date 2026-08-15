@@ -1130,6 +1130,10 @@ class ChartSlot:
 # POPUP CHART WINDOW
 # =========================================================
 
+# =========================================================
+# POPUP CHART WINDOW
+# =========================================================
+
 class PopupChartWindow(QMainWindow):
 
     def __init__(
@@ -1143,18 +1147,68 @@ class PopupChartWindow(QMainWindow):
         self.dashboard = parent_dashboard
         self.source_slot = source_slot
 
-        self.sheet = source_slot.sheet
-        self.symbol = source_slot.symbol
-        self.timeframe = source_slot.timeframe
+        # -------------------------------------------------
+        # POPUP STATE
+        # -------------------------------------------------
 
-        self.chart_ready = False
+        self.current_layout = "1_full"
+
+        self.active_slot_id = 0
+
+        self.layout_sync_enabled = {
+            layout_id: True
+            for layout_id in LAYOUTS
+        }
+
         self.sync_enabled = True
+        
         self.closing = False
 
+        # -------------------------------------------------
+        # CHART SLOTS
+        # -------------------------------------------------
+
+        self.chart_slots = []
+
+        for slot_id in range(8):
+
+            slot = ChartSlot(
+                slot_id,
+                self
+            )
+
+            self.chart_slots.append(
+                slot
+            )
+
+        # -------------------------------------------------
+        # INITIAL SLOT STATE
+        # -------------------------------------------------
+
+        for slot in self.chart_slots:
+
+            slot.sheet = (
+                source_slot.sheet
+            )
+
+            slot.symbol = (
+                source_slot.symbol
+            )
+
+            slot.timeframe = (
+                source_slot.timeframe
+            )
+
+            slot.update_header()
+
+        # -------------------------------------------------
+        # INITIAL WINDOW
+        # -------------------------------------------------
+
         self.setWindowTitle(
-            f"Trading Dashboard • "
-            f"{self.symbol} • "
-            f"{self.timeframe}"
+            f"Trading Dashboard Popup • "
+            f"{source_slot.symbol} • "
+            f"{source_slot.timeframe}"
         )
 
         self.resize(
@@ -1179,7 +1233,9 @@ class PopupChartWindow(QMainWindow):
             0
         )
 
-        main_layout.setSpacing(0)
+        main_layout.setSpacing(
+            0
+        )
 
         # =================================================
         # TOOLBAR
@@ -1188,7 +1244,7 @@ class PopupChartWindow(QMainWindow):
         toolbar = QWidget()
 
         toolbar.setFixedHeight(
-            36
+            38
         )
 
         toolbar_layout = QHBoxLayout(
@@ -1203,12 +1259,12 @@ class PopupChartWindow(QMainWindow):
         )
 
         toolbar_layout.setSpacing(
-            5
+            4
         )
 
-        # =================================================
-        # POPUP SYMBOL
-        # =================================================
+        # -------------------------------------------------
+        # SYMBOL
+        # -------------------------------------------------
 
         toolbar_layout.addWidget(
             QLabel("Symbol:")
@@ -1228,10 +1284,16 @@ class PopupChartWindow(QMainWindow):
             self.dashboard.sheet_names
         )
 
-        if self.symbol in self.dashboard.sheet_names:
+        current_symbol = (
+            source_slot.symbol
+        )
+
+        if current_symbol in (
+            self.dashboard.sheet_names
+        ):
 
             self.symbol_combo.setCurrentText(
-                self.symbol
+                current_symbol
             )
 
         self.symbol_combo.currentTextChanged.connect(
@@ -1242,9 +1304,9 @@ class PopupChartWindow(QMainWindow):
             self.symbol_combo
         )
 
-        # =================================================
-        # POPUP TIMEFRAME
-        # =================================================
+        # -------------------------------------------------
+        # TIMEFRAME
+        # -------------------------------------------------
 
         toolbar_layout.addWidget(
             QLabel("TF:")
@@ -1271,7 +1333,9 @@ class PopupChartWindow(QMainWindow):
             )
 
             button.setChecked(
-                label == self.timeframe
+                label
+                ==
+                source_slot.timeframe
             )
 
             self.timeframe_buttons[
@@ -1291,48 +1355,8 @@ class PopupChartWindow(QMainWindow):
             )
 
         toolbar_layout.addSpacing(
-            5
+            6
         )
-
-        # =================================================
-        # TITLE
-        # =================================================
-
-        self.title_label = QLabel(
-            f"{self.symbol} • {self.timeframe}"
-        )
-
-        self.title_label.setStyleSheet(
-            """
-            QLabel {
-                color: #333333;
-                font-size: 11px;
-                font-weight: 600;
-            }
-            """
-        )
-
-        toolbar_layout.addWidget(
-            self.title_label
-        )
-
-        toolbar_layout.addStretch()
-
-        self.title_label.setStyleSheet(
-            """
-            QLabel {
-                color: #333333;
-                font-size: 11px;
-                font-weight: 600;
-            }
-            """
-        )
-
-        toolbar_layout.addWidget(
-            self.title_label
-        )
-
-        toolbar_layout.addStretch()
 
         # -------------------------------------------------
         # DRAWINGS
@@ -1375,8 +1399,10 @@ class PopupChartWindow(QMainWindow):
 
         for label, tool in drawing_actions:
 
-            action = drawings_menu.addAction(
-                label
+            action = (
+                drawings_menu.addAction(
+                    label
+                )
             )
 
             action.triggered.connect(
@@ -1395,9 +1421,130 @@ class PopupChartWindow(QMainWindow):
             self.drawings_button
         )
 
-        # -------------------------------------------------
+        # =================================================
+        # LAYOUTS MENU
+        # =================================================
+
+        self.layouts_button = QPushButton(
+            "Layouts ▾"
+        )
+
+        self.layouts_button.setFixedHeight(
+            27
+        )
+
+        self.layouts_button.setMinimumWidth(
+            90
+        )
+
+        self.layouts_menu = QMenu(
+            self
+        )
+
+        self.layouts_menu.setStyleSheet(
+            """
+            QMenu {
+                background: #ffffff;
+                border: 1px solid #d5d8dc;
+                padding: 4px;
+            }
+
+            QMenu::separator {
+                height: 1px;
+                background: #e5e7eb;
+                margin: 2px 4px;
+            }
+            """
+        )
+
+        layout_groups = {
+
+            1: [
+                "1_full",
+            ],
+
+            2: [
+                "2_horizontal",
+                "2_vertical",
+            ],
+
+            3: [
+                "3_horizontal",
+                "3_vertical",
+                "3_large_left",
+                "3_large_right",
+                "3_large_top",
+                "3_large_bottom",
+            ],
+
+            4: [
+                "4_grid",
+                "4_horizontal",
+                "4_vertical",
+                "4_large_left",
+                "4_large_right",
+                "4_large_top",
+                "4_large_bottom",
+            ],
+
+            5: [
+                "5_horizontal",
+                "5_two_three",
+            ],
+
+            6: [
+                "6_grid",
+                "6_horizontal",
+            ],
+
+            8: [
+                "8_grid",
+                "8_horizontal",
+            ],
+        }
+
+        for index, (
+            count,
+            layout_ids
+        ) in enumerate(
+            layout_groups.items()
+        ):
+
+            row_widget = LayoutMenuRow(
+                self,
+                count,
+                layout_ids
+            )
+
+            action = QWidgetAction(
+                self.layouts_menu
+            )
+
+            action.setDefaultWidget(
+                row_widget
+            )
+
+            self.layouts_menu.addAction(
+                action
+            )
+
+            if index < (
+                len(layout_groups) - 1
+            ):
+
+                self.layouts_menu.addSeparator()
+
+        self.layouts_button.setMenu(
+            self.layouts_menu
+        )
+
+        toolbar_layout.addWidget(
+            self.layouts_button
+        )
+
+        # =================================================
         # MOUSE SYNC
-        # -------------------------------------------------
+        # =================================================
 
         self.sync_button = QPushButton(
             "Mouse Sync: ON"
@@ -1416,7 +1563,7 @@ class PopupChartWindow(QMainWindow):
         )
 
         self.sync_button.clicked.connect(
-            self.toggle_sync
+            self.toggle_layout_sync
         )
 
         toolbar_layout.addWidget(
@@ -1448,216 +1595,279 @@ class PopupChartWindow(QMainWindow):
         )
 
         # =================================================
-        # CHART
+        # WORKSPACE
         # =================================================
 
-        self.browser = ClickableChartView()
+        self.workspace = QWidget()
 
-        self.browser.setContextMenuPolicy(
-            Qt.NoContextMenu
+        self.workspace_layout = QGridLayout(
+            self.workspace
         )
 
-        self.bridge = ChartBridge()
-
-        self.channel = QWebChannel(
-            self.browser.page()
+        self.workspace_layout.setContentsMargins(
+            2,
+            2,
+            2,
+            2
         )
 
-        self.channel.registerObject(
-            "chartBridge",
-            self.bridge
-        )
-
-        self.browser.page().setWebChannel(
-            self.channel
-        )
-
-        self.bridge.clicked.connect(
-            self.activate_popup
-        )
-
-        self.bridge.mouse_moved.connect(
-            self.chart_crosshair_moved
-        )
-
-        self.browser.mouse_left.connect(
-            self.mouse_left
-        )
-
-        html_file = (
-            Path(__file__).parent
-            / "web"
-            / "chart_test.html"
-        )
-
-        self.browser.setUrl(
-            QUrl.fromLocalFile(
-                str(html_file)
-            )
-        )
-
-        self.browser.loadFinished.connect(
-            self.on_chart_loaded
+        self.workspace_layout.setSpacing(
+            3
         )
 
         main_layout.addWidget(
-            self.browser
+            self.workspace
         )
 
         self.setCentralWidget(
             central
         )
 
-    # =====================================================
-    # POPUP ACTIVE
-    # =====================================================
+        # =================================================
+        # INITIAL LAYOUT
+        # =================================================
 
-    def activate_popup(self):
-
-        self.raise_()
-        self.activateWindow()
-
-    # =====================================================
-    # CHART LOADED
-    # =====================================================
-
-    def on_chart_loaded(
-        self,
-        ok
-    ):
-
-        self.chart_ready = bool(
-            ok
+        self.set_layout(
+            "1_full"
         )
 
-        if not ok:
+    # =====================================================
+    # ACTIVE SLOT
+    # =====================================================
+
+    @property
+    def chart_ready(self):
+        return any(
+            getattr(slot, "chart_ready", False)
+            for slot in self.chart_slots
+        )
+
+    def active_slot(
+        self
+    ):
+
+        return self.chart_slots[
+            self.active_slot_id
+        ]
+
+    # =====================================================
+    # SET ACTIVE SLOT
+    # =====================================================
+
+    def set_active_slot(
+        self,
+        slot_id
+    ):
+
+        if slot_id < 0:
             return
 
-        self.dashboard.refresh_popup(
-            self
-        )
-
-    # =====================================================
-    # HEADER
-    # =====================================================
-
-    def update_header(self):
-
-        self.title_label.setText(
-            f"{self.symbol} • "
-            f"{self.timeframe}"
-        )
-
-        self.setWindowTitle(
-            f"Trading Dashboard • "
-            f"{self.symbol} • "
-            f"{self.timeframe}"
-        )
-
-    # =====================================================
-    # DRAWING
-    # =====================================================
-
-    def activate_drawing_tool(
-        self,
-        tool
-    ):
-
-        if not self.chart_ready:
+        if slot_id >= len(
+            self.chart_slots
+        ):
             return
 
-        javascript = (
-            "setDrawingModeFromPython("
-            f"{json.dumps(tool)}"
-            ");"
+        self.active_slot_id = (
+            slot_id
         )
 
-        self.browser.page().runJavaScript(
-            javascript
+        visible = (
+            self.visible_slot_ids()
         )
 
-    # =====================================================
-    # MOUSE SYNC TOGGLE
-    # =====================================================
+        for slot in self.chart_slots:
 
-    def toggle_sync(
-        self,
-        checked
-    ):
-
-        self.sync_enabled = bool(
-            checked
-        )
-
-        self.sync_button.setText(
-            "Mouse Sync: ON"
-            if self.sync_enabled
-            else
-            "Mouse Sync: OFF"
-        )
-
-        if not self.sync_enabled:
-
-            self.browser.page().runJavaScript(
-                "clearSyncedCrosshair();"
+            slot.set_active(
+                slot.slot_id
+                ==
+                self.active_slot_id
+                and
+                slot.slot_id in visible
             )
 
     # =====================================================
-    # CROSSHAIR
+    # VISIBLE SLOTS
     # =====================================================
 
-    def chart_crosshair_moved(
-        self,
-        time,
-        price
+    def visible_slot_ids(
+        self
     ):
 
-        if not self.chart_ready:
-            return
+        layout = LAYOUTS.get(
+            self.current_layout
+        )
 
-        if not self.sync_enabled:
-            return
+        if not layout:
+            return []
 
-        if time is None:
-            return
-
-        self.dashboard.sync_crosshair(
-            self,
-            float(time)
+        return list(
+            range(
+                layout["count"]
+            )
         )
 
     # =====================================================
-    # MOUSE LEFT
+    # LAYOUT ENGINE
     # =====================================================
 
-    def mouse_left(self):
-
-        if not self.sync_enabled:
-            return
-
-        self.dashboard.clear_synced_crosshair(
-            self
-        )
-
-    # =====================================================
-    # CLOSE
-    # =====================================================
-
-    def closeEvent(
+    def set_layout(
         self,
-        event
+        layout_id
     ):
 
-        self.closing = True
+        if layout_id not in LAYOUTS:
+            return
 
-        self.dashboard.unregister_popup(
-            self
+        self.current_layout = (
+            layout_id
         )
 
-        event.accept()
+        config = LAYOUTS[
+            layout_id
+        ]
+
+        rows = config[
+            "rows"
+        ]
+
+        cols = config[
+            "cols"
+        ]
+
+        positions = config[
+            "positions"
+        ]
+
+        chart_count = config[
+            "count"
+        ]
+
+        # -------------------------------------------------
+        # REMOVE CURRENT WIDGETS
+        # -------------------------------------------------
+
+        while (
+            self.workspace_layout.count()
+            > 0
+        ):
+
+            item = (
+                self.workspace_layout.takeAt(
+                    0
+                )
+            )
+
+            widget = item.widget()
+
+            if widget:
+
+                widget.hide()
+
+        # -------------------------------------------------
+        # CLEAR STRETCH
+        # -------------------------------------------------
+
+        for row in range(8):
+
+            self.workspace_layout.setRowStretch(
+                row,
+                0
+            )
+
+        for col in range(8):
+
+            self.workspace_layout.setColumnStretch(
+                col,
+                0
+            )
+
+        # -------------------------------------------------
+        # ADD CHARTS
+        # -------------------------------------------------
+
+        for index, position in enumerate(
+            positions
+        ):
+
+            (
+                row,
+                col,
+                row_span,
+                col_span
+            ) = position
+
+            slot = self.chart_slots[
+                index
+            ]
+
+            self.workspace_layout.addWidget(
+                slot.container,
+                row,
+                col,
+                row_span,
+                col_span
+            )
+
+            slot.container.show()
+
+        # -------------------------------------------------
+        # STRETCH
+        # -------------------------------------------------
+
+        for row in range(rows):
+
+            self.workspace_layout.setRowStretch(
+                row,
+                1
+            )
+
+        for col in range(cols):
+
+            self.workspace_layout.setColumnStretch(
+                col,
+                1
+            )
+
+        # -------------------------------------------------
+        # ACTIVE SLOT
+        # -------------------------------------------------
+
+        if (
+            self.active_slot_id
+            >= chart_count
+        ):
+
+            self.active_slot_id = 0
+
+        self.set_active_slot(
+            self.active_slot_id
+        )
+
+        # -------------------------------------------------
+        # REFRESH VISIBLE CHARTS
+        # -------------------------------------------------
+
+        for slot_id in (
+            self.visible_slot_ids()
+        ):
+
+            self.refresh_slot(
+                slot_id
+            )
+
+        # -------------------------------------------------
+        # STATUS
+        # -------------------------------------------------
+
+        self.setWindowTitle(
+            f"Trading Dashboard Popup • "
+            f"Layout {layout_id} • "
+            f"Chart "
+            f"{self.active_slot_id + 1}"
+        )
 
     # =====================================================
-    # POPUP SYMBOL CHANGE
+    # SYMBOL CHANGE
     # =====================================================
 
     def symbol_changed(
@@ -1668,20 +1878,26 @@ class PopupChartWindow(QMainWindow):
         if not symbol:
             return
 
-        if symbol not in self.dashboard.sheet_names:
+        if symbol not in (
+            self.dashboard.sheet_names
+        ):
             return
 
-        self.symbol = symbol
-        self.sheet = symbol
+        slot = self.active_slot()
+
+        slot.symbol = symbol
+        slot.sheet = symbol
+
+        slot.update_header()
+
+        self.refresh_slot(
+            slot.slot_id
+        )
 
         self.update_header()
 
-        self.dashboard.refresh_popup(
-            self
-        )
-
     # =====================================================
-    # POPUP TIMEFRAME CHANGE
+    # TIMEFRAME CHANGE
     # =====================================================
 
     def change_timeframe(
@@ -1694,31 +1910,415 @@ class PopupChartWindow(QMainWindow):
         ):
             return
 
-        self.timeframe = timeframe
+        slot = self.active_slot()
+
+        slot.timeframe = (
+            timeframe
+        )
 
         for label, button in (
             self.timeframe_buttons.items()
         ):
 
+            button.blockSignals(
+                True
+            )
+
             button.setChecked(
                 label == timeframe
             )
 
+            button.blockSignals(
+                False
+            )
+
+        slot.update_header()
+
+        self.refresh_slot(
+            slot.slot_id
+        )
+
         self.update_header()
 
-        self.dashboard.refresh_popup(
+    # =====================================================
+    # DRAWINGS
+    # =====================================================
+
+    def activate_drawing_tool(
+        self,
+        tool
+    ):
+
+        slot = self.active_slot()
+
+        if not slot.chart_ready:
+            return
+
+        javascript = (
+            "setDrawingModeFromPython("
+            f"{json.dumps(tool)}"
+            ");"
+        )
+
+        slot.browser.page().runJavaScript(
+            javascript
+        )
+
+    # =====================================================
+    # MOUSE SYNC
+    # =====================================================
+
+    def toggle_layout_sync(
+        self,
+        checked
+    ):
+
+        self.layout_sync_enabled[
+            self.current_layout
+        ] = bool(
+            checked
+        )
+
+        self.update_mouse_sync_button()
+
+        if not checked:
+
+            for slot_id in (
+                self.visible_slot_ids()
+            ):
+
+                slot = self.chart_slots[
+                    slot_id
+                ]
+
+                if not slot.chart_ready:
+                    continue
+
+                slot.browser.page().runJavaScript(
+                    "clearSyncedCrosshair();"
+                )
+
+    # =====================================================
+    # UPDATE MOUSE SYNC BUTTON
+    # =====================================================
+
+    def update_mouse_sync_button(
+        self
+    ):
+
+        enabled = (
+            self.layout_sync_enabled.get(
+                self.current_layout,
+                True
+            )
+        )
+
+        self.sync_button.blockSignals(
+            True
+        )
+
+        self.sync_button.setChecked(
+            enabled
+        )
+
+        self.sync_button.setText(
+            "Mouse Sync: ON"
+            if enabled
+            else
+            "Mouse Sync: OFF"
+        )
+
+        self.sync_button.blockSignals(
+            False
+        )
+
+    # =====================================================
+    # CROSSHAIR
+    # =====================================================
+
+    def sync_crosshair(
+        self,
+        slot_id,
+        time
+    ):
+
+        if not self.layout_sync_enabled.get(
+            self.current_layout,
+            True
+        ):
+            return
+
+        if slot_id not in (
+            self.visible_slot_ids()
+        ):
+            return
+
+        try:
+
+            time = float(
+                time
+            )
+
+        except (
+            TypeError,
+            ValueError
+        ):
+
+            return
+
+        if not math.isfinite(
+            time
+        ):
+            return
+
+        javascript = (
+            "syncCrosshairFromPython("
+            f"{time}"
+            ");"
+        )
+
+        for target_id in (
+            self.visible_slot_ids()
+        ):
+
+            if target_id == slot_id:
+                continue
+
+            target = self.chart_slots[
+                target_id
+            ]
+
+            if not target.chart_ready:
+                continue
+
+            target.browser.page().runJavaScript(
+                javascript
+            )
+
+        # Sync this popup through the
+        # main dashboard sync manager.
+        self.dashboard.sync_crosshair(
+            self,
+            time
+        )
+
+    # =====================================================
+    # CLEAR CROSSHAIR
+    # =====================================================
+
+    def clear_synced_crosshair(
+        self,
+        slot_id
+    ):
+
+        if not self.layout_sync_enabled.get(
+            self.current_layout,
+            True
+        ):
+            return
+
+        for target_id in (
+            self.visible_slot_ids()
+        ):
+
+            if target_id == slot_id:
+                continue
+
+            target = self.chart_slots[
+                target_id
+            ]
+
+            if not target.chart_ready:
+                continue
+
+            target.browser.page().runJavaScript(
+                "clearSyncedCrosshair();"
+            )
+
+        self.dashboard.clear_synced_crosshair(
             self
         )
 
     # =====================================================
-    # UPDATE POPUP SYMBOL LIST
+    # REFRESH SLOT
+    # =====================================================
+
+    def refresh_slot(
+        self,
+        slot_id
+    ):
+
+        if self.closing:
+            return
+
+        if self.dashboard.current_file is None:
+            return
+
+        if slot_id < 0:
+            return
+
+        if slot_id >= len(
+            self.chart_slots
+        ):
+            return
+
+        slot = self.chart_slots[
+            slot_id
+        ]
+
+        if not slot.chart_ready:
+            return
+
+        try:
+
+            chart_data = load_sheet(
+                self.dashboard.current_file,
+                slot.sheet
+            )
+
+        except Exception as exc:
+
+            print(
+                f"[POPUP SLOT ERROR] "
+                f"Chart {slot_id + 1} "
+                f"{slot.sheet}: {exc}"
+            )
+
+            slot.browser.page().runJavaScript(
+                "clearChartData();"
+            )
+
+            return
+
+        try:
+
+            chart_data = (
+                self.dashboard.prepare_timeframe(
+                    chart_data,
+                    slot.timeframe
+                )
+            )
+
+        except Exception as exc:
+
+            print(
+                f"[POPUP TIMEFRAME ERROR] "
+                f"Chart {slot_id + 1}: {exc}"
+            )
+
+            slot.browser.page().runJavaScript(
+                "clearChartData();"
+            )
+
+            return
+
+        candles = []
+
+        for _, row in (
+            chart_data.iterrows()
+        ):
+
+            try:
+
+                timestamp = int(
+                    row[
+                        "timestamp"
+                    ].timestamp()
+                )
+
+                open_price = float(
+                    row["Open"]
+                )
+
+                high_price = float(
+                    row["High"]
+                )
+
+                low_price = float(
+                    row["Low"]
+                )
+
+                close_price = float(
+                    row["Close"]
+                )
+
+            except Exception:
+
+                continue
+
+            if not all(
+                math.isfinite(value)
+                for value in (
+                    open_price,
+                    high_price,
+                    low_price,
+                    close_price
+                )
+            ):
+
+                continue
+
+            candles.append(
+                {
+                    "time": timestamp,
+                    "open": open_price,
+                    "high": high_price,
+                    "low": low_price,
+                    "close": close_price,
+                }
+            )
+
+        if not candles:
+
+            slot.browser.page().runJavaScript(
+                "clearChartData();"
+            )
+
+            return
+
+        javascript = (
+            "setChartData("
+            f"{json.dumps(candles)},"
+            f"{json.dumps(slot.sheet)}"
+            ");"
+        )
+
+        slot.browser.page().runJavaScript(
+            javascript
+        )
+
+        slot.update_header()
+
+    # =====================================================
+    # REFRESH ALL SLOTS
+    # =====================================================
+
+    def refresh_all_slots(
+        self
+    ):
+
+        if self.closing:
+            return
+
+        for slot_id in (
+            self.visible_slot_ids()
+        ):
+
+            self.refresh_slot(
+                slot_id
+            )
+
+    # =====================================================
+    # UPDATE SYMBOL LIST
     # =====================================================
 
     def update_symbol_list(
         self
     ):
 
-        current_symbol = self.symbol
+        current_symbol = (
+            self.active_slot().symbol
+        )
 
         self.symbol_combo.blockSignals(
             True
@@ -1740,21 +2340,71 @@ class PopupChartWindow(QMainWindow):
 
         elif self.dashboard.sheet_names:
 
-            self.symbol = (
+            slot = self.active_slot()
+
+            slot.symbol = (
                 self.dashboard.sheet_names[0]
             )
 
-            self.sheet = self.symbol
+            slot.sheet = slot.symbol
 
             self.symbol_combo.setCurrentText(
-                self.symbol
+                slot.symbol
             )
 
         self.symbol_combo.blockSignals(
             False
         )
 
-        self.update_header()
+    # =====================================================
+    # UPDATE HEADER
+    # =====================================================
+
+    def update_header(
+        self
+    ):
+
+        slot = self.active_slot()
+
+        self.symbol_combo.blockSignals(
+            True
+        )
+
+        if slot.symbol in (
+            self.dashboard.sheet_names
+        ):
+
+            self.symbol_combo.setCurrentText(
+                slot.symbol
+            )
+
+        self.symbol_combo.blockSignals(
+            False
+        )
+
+        self.setWindowTitle(
+            f"Trading Dashboard Popup • "
+            f"{slot.symbol} • "
+            f"{slot.timeframe}"
+        )
+
+    # =====================================================
+    # CLOSE
+    # =====================================================
+
+    def closeEvent(
+        self,
+        event
+    ):
+
+        self.closing = True
+
+        self.dashboard.unregister_popup(
+            self
+        )
+
+        event.accept()
+
 # =========================================================
 # MAIN WINDOW
 # =========================================================
@@ -2627,9 +3277,9 @@ class TradingDashboard(
                     popup.chart_ready
                 )
 
-                self.refresh_popup(
-                    popup
-                )
+                popup.update_symbol_list()
+
+                popup.refresh_all_slots()
 
             self.select_sheet_in_list(
                 self.chart_slots[
@@ -2956,15 +3606,19 @@ class TradingDashboard(
             if popup.closing:
                 continue
 
-            if not popup.chart_ready:
-                continue
-
             if not popup.sync_enabled:
                 continue
 
-            popup.browser.page().runJavaScript(
-                javascript
-        )
+            for slot_id in popup.visible_slot_ids():
+
+                slot = popup.chart_slots[slot_id]
+
+                if not slot.chart_ready:
+                    continue
+
+                slot.browser.page().runJavaScript(
+                    javascript
+                )
 
     # =====================================================
     # CLEAR SYNCHRONIZED CROSSHAIR
@@ -3765,148 +4419,57 @@ class TradingDashboard(
     # =====================================================
     # REFRESH POPUP
     # =====================================================
+    # =====================================================
+    # REFRESH POPUP
+    # =====================================================
 
     def refresh_popup(
         self,
         popup
     ):
 
-        if self.current_file is None:
+        if popup is None:
             return
 
-        if not popup.chart_ready:
+        if popup.closing:
             return
 
-        try:
+        popup.refresh_all_slots()
 
-            chart_data = load_sheet(
-                self.current_file,
-                popup.sheet
-            )
-
-        except Exception as exc:
-
-            print(
-                f"[POPUP DATA ERROR] "
-                f"{popup.sheet}: {exc}"
-            )
-
-            popup.browser.page().runJavaScript(
-                "clearChartData();"
-            )
-
-            return
-
-        try:
-            chart_data = (
-                self.prepare_timeframe(
-                    chart_data,
-                    popup.timeframe
-                )
-            )
-
-        except Exception as exc:
-        
-                    print(
-                        f"[POPUP DATA ERROR] "
-                        f"{popup.sheet}: {exc}"
-                    )
-        
-                    popup.browser.page().runJavaScript(
-                        "clearChartData();"
-                    )
-        
-                    return
-        
-        candles = []
-
-        for _, row in (
-            chart_data.iterrows()
-        ):
-
-            timestamp = int(
-                row["timestamp"].timestamp()
-            )
-
-            open_price = float(
-                row["Open"]
-            )
-
-            high_price = float(
-                row["High"]
-            )
-
-            low_price = float(
-                row["Low"]
-            )
-
-            close_price = float(
-                row["Close"]
-            )
-
-            if not all(
-                math.isfinite(value)
-                for value in (
-                    open_price,
-                    high_price,
-                    low_price,
-                    close_price,
-                )
-            ):
-
-                continue
-
-            candles.append(
-                {
-                    "time": timestamp,
-                    "open": open_price,
-                    "high": high_price,
-                    "low": low_price,
-                    "close": close_price,
-                }
-            )
-
-        if not candles:
-
-            popup.browser.page().runJavaScript(
-                "clearChartData();"
-            )
-
-            return
-
-        javascript = (
-            "setChartData("
-            f"{json.dumps(candles)},"
-            f"{json.dumps(popup.sheet)}"
-            ");"
-        )
-
-        popup.browser.page().runJavaScript(
-            javascript
-        )
-
-        popup.update_header()
-
-    # =====================================================
+# =====================================================
 # CLOSE MAIN WINDOW
 # =====================================================
 
-def closeEvent(self, event):
+# =====================================================
+# CLOSE MAIN WINDOW
+# =====================================================
 
-    # Close every popup owned by the dashboard
-    for popup in list(self.popup_windows):
+    # =====================================================
+    # CLOSE MAIN WINDOW
+    # =====================================================
 
-        try:
-            popup.closing = True
-            popup.close()
-        except Exception:
-            pass
+    def closeEvent(
+        self,
+        event
+    ):
 
-    self.popup_windows.clear()
+        for popup in list(
+            self.popup_windows
+        ):
 
-    event.accept()
-    
-# =========================================================
+            try:
+
+                if not popup.closing:
+                    popup.closing = True
+                    popup.close()
+
+            except Exception:
+                pass
+
+        self.popup_windows.clear()
+
+        event.accept()
+
 # APPLICATION ENTRY
 # =========================================================
 
@@ -3928,3 +4491,4 @@ def main():
 if __name__ == "__main__":
 
     main()
+
