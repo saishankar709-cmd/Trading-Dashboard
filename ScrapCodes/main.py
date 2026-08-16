@@ -998,6 +998,14 @@ class ChartSlot:
         if not self.chart_ready:
             return
 
+        # -------------------------------------------------
+        # DO NOT EVEN ASK JAVASCRIPT FOR CROSSHAIR POSITION
+        # WHEN THIS WINDOW'S MOUSE SYNC IS OFF.
+        # -------------------------------------------------
+
+        if not self.parent.sync_enabled:
+            return
+
         javascript = (
             "getCrosshairMarketPosition("
             f"{int(x)},"
@@ -1023,6 +1031,13 @@ class ChartSlot:
             return
 
         if time is None:
+            return
+
+        # -------------------------------------------------
+        # SOURCE WINDOW MOUSE SYNC MASTER SWITCH
+        # -------------------------------------------------
+
+        if not self.parent.sync_enabled:
             return
 
         if isinstance(
@@ -1074,6 +1089,13 @@ class ChartSlot:
         )
 
         if time is None:
+            return
+
+        # -------------------------------------------------
+        # SOURCE WINDOW MOUSE SYNC MASTER SWITCH
+        # -------------------------------------------------
+
+        if not self.parent.sync_enabled:
             return
 
         if isinstance(
