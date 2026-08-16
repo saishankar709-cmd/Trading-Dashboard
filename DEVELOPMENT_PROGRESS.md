@@ -1,1142 +1,515 @@
-TRADING DASHBOARD — DEVELOPMENT PROGRESS / HANDOFF NOTES
-1. PROJECT IDENTITY
-Project name: Trading Dashboard
+ersion 1 — Stable Baseline and Performance Optimization Roadmap
 
-Local project root:
 
-D:\Coding\Trading-Dashboard
 
-Operating environment:
+Version 1 — Stable Baseline and Performance Optimization Roadmap
+1. Version 1 Status
+Version 1 of the Trading Dashboard has been completed and is now considered the stable baseline version of the application.
 
-Windows
-PowerShell
-Python virtual environment (.venv)
+The current Version 1 should be preserved as a reference implementation before any major performance optimization or architectural changes are introduced.
 
-Virtual environment:
+The primary objective of Version 1 was to establish a functional multi-chart trading dashboard with synchronized charts, multiple layouts, drawing tools, timeframe support, popup charts, and Excel-based market-data loading.
 
-D:\Coding\Trading-Dashboard\.venv
+Version 1 is now feature-complete for the current development scope and should be treated as a locked baseline.
 
-The normal terminal prompt is:
+2. What We Achieved in Version 1
+2.1 Desktop Trading Dashboard
+Built a desktop trading dashboard using:
 
-(.venv) PS D:\Coding\Trading-Dashboard>
-
-2. CURRENT LOCAL PROJECT STRUCTURE
-The current PC folder structure is:
-
-D:\Coding\Trading-Dashboard
-│
-├── .venv
-│   ├── Include
-│   ├── Lib
-│   └── Scripts
-│
-├── .gitignore
-├── pyvenv.cfg
-│
-├── src
-│   │
-│   ├── __pycache__
-│   │
-│   ├── charts
-│   │
-│   ├── data
-│   │
-│   ├── ui
-│   │
-│   ├── web
-│   │   ├── chart_test_backup_20260813_071320.html
-│   │   ├── chart_test_backup.html
-│   │   ├── chart_test.html
-│   │   └── lightweight-charts.js
-│   │
-│   ├── main_backup_20260813_071320.py
-│   ├── main_backup.py
-│   └── main.py
-│
-├── tests
-│
-├── DEVELOPMENT_PROGRESS.md
-├── sync_javascript.txt
-└── sync_python_sections.txt
-
-Important source files:
-
-D:\Coding\Trading-Dashboard\src\main.py
-D:\Coding\Trading-Dashboard\src\web\chart_test.html
-D:\Coding\Trading-Dashboard\src\web\lightweight-charts.js
-
-3. BACKUP STRUCTURE
-There are already multiple local backup files.
-
-Current backups:
-
-D:\Coding\Trading-Dashboard\src\main_backup.py
-
-D:\Coding\Trading-Dashboard\src\main_backup_20260813_071320.py
-
-D:\Coding\Trading-Dashboard\src\web\chart_test_backup.html
-
-D:\Coding\Trading-Dashboard\src\web\chart_test_backup_20260813_071320.html
-
-The timestamped backups:
-
-main_backup_20260813_071320.py
-chart_test_backup_20260813_071320.html
-
-represent a dated local backup point.
-
-The normal backups:
-
-main_backup.py
-chart_test_backup.html
-
-are also retained.
-
-IMPORTANT BACKUP RULE
-Do NOT automatically create another backup file.
-
-Before making major changes, inspect the existing backups and GitHub state first.
-
-If a new backup is specifically required, ask/confirm before creating additional files.
-
-4. GITHUB
-The project is synchronized with:
-
-https://github.com/saishankar709-cmd/Trading-Dashboard
-
-The latest working code was manually synced to GitHub after the crosshair synchronization work.
-
-GitHub is the remote recovery point.
-
-The local PC backups are the local recovery points.
-
-Therefore the project currently has:
-
-LOCAL WORKING CODE
-        +
-LOCAL BACKUPS
-        +
-GITHUB COPY
-
-5. CURRENT DEVELOPMENT STATUS
-Major completed milestone
-Multi-chart crosshair synchronization
-STATUS: COMPLETE / WORKING
-
-The crosshair now synchronizes correctly between visible chart layouts.
-
-The original problem was:
-
-Crosshair was visible on the chart where the mouse was placed, but it did not appear correctly on the other charts/layouts.
-
-This has now been fixed.
-
-6. CHART SLOT ARCHITECTURE
-The dashboard supports multiple chart slots.
-
-Current chart slots include:
-
-ChartSlot 1
-ChartSlot 2
-ChartSlot 3
-ChartSlot 4
-
-The application can display different layouts containing different numbers of visible chart slots.
-
-Each chart slot has its own:
-
-QWebEngineView
-JavaScript chart
-Lightweight Charts instance
-Candlestick series
-QWebChannel bridge
-mouse handling
-chart data
-timeframe
-instrument/sheet
-crosshair state
-The Python dashboard coordinates the visible chart slots.
-
-7. ACTIVE CHART SELECTION
-Each chart slot can become the active chart.
-
-The Python dashboard maintains:
-
-self.active_slot_id
-
-The chart slot calls:
-
-self.parent.set_active_slot(
-    self.slot_id
-)
-
-Temporary debug messages such as:
-
-[ACTIVE] ChartSlot 1
-[CLICK] ChartSlot 1
-
-were used during development.
-
-These messages were removed/cleaned up because they are not needed during normal application operation.
-
-8. CROSSHAIR SYNCHRONIZATION DESIGN
-The synchronization architecture is intentionally based on time, not shared price.
-
-This is important because different charts can represent different instruments.
-
-The flow is:
-
-SOURCE CHART
-     │
-     │ mouse movement
-     ▼
-browser mouse coordinates
-     │
-     ▼
-JavaScript
-     │
-     │ X coordinate → market timestamp
-     ▼
 Python
-     │
-     │ timestamp
-     ▼
-other visible chart slots
-     │
-     ▼
-each chart finds its own nearest candle
-     │
-     ▼
-each chart uses its own candle close
-     │
-     ▼
-destination crosshair
+PySide6
+Qt WebEngine
+JavaScript
+Lightweight Charts
+Pandas
+Excel market-data files
+The application provides a multi-chart workspace designed for intraday market analysis.
+
+2.2 Multi-Chart Layout System
+Implemented multiple chart layouts supporting different numbers and arrangements of charts.
+
+The dashboard can display multiple chart slots simultaneously and dynamically change between supported layouts.
+
+The chart-slot architecture allows each chart to maintain its own:
+
+Symbol / worksheet
+Timeframe
+Chart state
+Drawing state
+WebEngine instance
+2.3 Excel Market Data Integration
+Implemented Excel-based market-data loading.
+
+The application reads market data containing:
+
+Date
+Time
+Open
+High
+Low
+Close
+The Excel loader:
+
+Combines Date and Time into a timestamp
+Validates required columns
+Removes invalid timestamp/OHLC rows
+Sorts the data chronologically
+Provides normalized Pandas DataFrames to the application
+The application supports the current market-data file structure used by the project.
+
+2.4 Timeframe Support
+Implemented timeframe processing for:
+
+1 Minute
+3 Minutes
+5 Minutes
+10 Minutes
+15 Minutes
+30 Minutes
+1 Hour
+1 Day
+Intraday aggregation uses the trading-session start time of 09:15.
+
+OHLC aggregation follows standard candle construction:
+
+Open = first value
+High = maximum value
+Low = minimum value
+Close = last value
+2.5 Candlestick Charting
+Integrated Lightweight Charts into the Qt desktop application using QWebEngineView.
+
+The application displays market data as interactive candlestick charts.
+
+The chart layer supports:
+
+Candlestick rendering
+Zooming
+Scrolling
+Crosshair
+Time scale
+Price scale
+Chart resizing
+Multiple independent chart instances
+2.6 Crosshair Synchronization
+Implemented synchronized crosshair functionality between charts.
+
+The synchronization is based on market timestamp, not price.
+
+The architecture is:
 
-Therefore:
-
-Do not synchronize the source chart's price to another instrument.
-
-Only the market timestamp should be synchronized.
-
-9. PYTHON QWEBCHANNEL BRIDGE
-In:
-
-D:\Coding\Trading-Dashboard\src\main.py
-
-the JavaScript bridge contains:
-
-mouse_moved = Signal(float, float)
-
-and:
-
-@Slot(float, float)
-def chart_mouse_moved(self, time, price):
-    self.mouse_moved.emit(
-        time,
-        price
-    )
-
-The bridge is connected to:
-
-self.bridge.mouse_moved.connect(
-    self.chart_crosshair_moved
-)
-
-The chart slot contains:
-
-def chart_crosshair_moved(
-    self,
-    time,
-    price
-):
-
-The price argument exists because the bridge currently emits both time and price.
-
-However, for synchronizing different instruments, time is the important value.
-
-The destination chart calculates its own price.
-
-Do not unnecessarily redesign this working bridge unless required by a future feature.
-
-10. BROWSER MOUSE HANDLING
-The custom browser widget contains:
-
-mouse_moved = Signal(int, int)
-mouse_left = Signal()
-
-Mouse tracking is enabled.
-
-Mouse movement emits:
-
-self.mouse_moved.emit(
-    int(pos.x()),
-    int(pos.y())
-)
-
-When the mouse leaves:
-
-self.mouse_left.emit()
-
-The chart slot connects browser movement to its own mouse handling.
-
-This allows Python to obtain browser coordinates and ask JavaScript to determine the corresponding market timestamp.
-
-11. JAVASCRIPT CHART BRIDGE
-In:
-
-D:\Coding\Trading-Dashboard\src\web\chart_test.html
-
-the bridge is initialized using:
-
-let chartBridge = null;
-
-new QWebChannel(
-    qt.webChannelTransport,
-    function(channel) {
-        chartBridge = channel.objects.chartBridge;
-    }
-);
-
-The chart container handles pointer interaction.
-
-The chart click handler calls:
-
-chartBridge.chart_clicked();
-
-The chart mouse position is converted into a market timestamp.
-
-12. SOURCE CROSSHAIR POSITION
-The source chart converts the mouse X coordinate to chart-local coordinates.
-
-The market timestamp is obtained using:
-
-chart.timeScale()
-    .coordinateToTime(chartX);
-
-The important design decision is:
-
-X coordinate
-    ↓
-market timestamp
-
-The source chart's price is deliberately not used for positioning the crosshair on another instrument.
-
-13. DESTINATION CROSSHAIR FUNCTION
-The JavaScript function is:
-
-function syncCrosshairFromPython(
-    time
-)
-
-It first checks that chart data exists.
-
-It converts the incoming time:
-
-const targetTime =
-    Number(time);
-
-It verifies that the value is finite.
-
-Then it searches:
-
-currentDataTimes
-
-for the nearest candle timestamp.
-
-The nearest candle is selected using the smallest absolute difference:
-
-abs(destination candle time - source time)
-
-Once the nearest candle is found:
-
-const candle =
-    currentCandleData[
-        nearestIndex
-    ];
-
-The destination chart gets its own price:
-
-const price =
-    Number(candle.close);
-
-This is the correct behavior for multi-instrument charts.
-
-14. LIGHTWEIGHT CHARTS "VALUE IS NULL" PROBLEM
-During development, repeated JavaScript errors appeared:
-
-js: Uncaught Error: Value is null
-
-The error happened while positioning the synchronized crosshair.
-
-The problematic operation was effectively:
-
-chart.setCrosshairPosition(
-    price,
-    nearestTime,
-    candleSeries
-);
-
-The important discovery was that having a valid candle timestamp does not guarantee that Lightweight Charts currently has a valid chart coordinate for that timestamp.
-
-Therefore:
-
-chart.timeScale()
-    .timeToCoordinate(nearestTime)
-
-can return:
-
-null
-
-or:
-
-undefined
-
-15. FINAL FIX FOR "VALUE IS NULL"
-The synchronized crosshair code now validates the coordinate before calling setCrosshairPosition().
-
-Current logic:
-
-const coordinate =
-    chart.timeScale()
-        .timeToCoordinate(
-            nearestTime
-        );
-
-if (
-    coordinate === null ||
-    coordinate === undefined ||
-    !Number.isFinite(
-        Number(coordinate)
-    )
-) {
-    return;
-}
-
-Only after this validation:
-
-chart.setCrosshairPosition(
-    price,
-    nearestTime,
-    candleSeries
-);
-
-This fixed the repeated:
-
-Value is null
-
-errors.
-
-The application was run again after the fix and the errors disappeared.
-
-IMPORTANT
-Do not remove this coordinate validation.
-
-It is an important defensive check around Lightweight Charts.
-
-16. CROSSHAIR CLEARING
-When the mouse leaves the source chart, synchronized crosshairs are cleared.
-
-Python contains:
-
-def mouse_left(self):
-    self.parent.clear_synced_crosshair(
-        self.slot_id
-    )
-
-The dashboard has:
-
-def clear_synced_crosshair(
-    self,
-    source_slot_id
-):
-
-JavaScript contains:
-
-function clearSyncedCrosshair() {
-    if (
-        typeof chart.clearCrosshairPosition
-        === "function"
-    ) {
-        chart.clearCrosshairPosition();
-    }
-}
-
-This removes the synchronized crosshair from charts when appropriate.
-
-17. CANDLE SERIES
-The candlestick series is created with:
-
-LightweightCharts.CandlestickSeries
-
-Current colors:
-
-Up candle:
-#26a69a
-
-Down candle:
-#ef5350
-
-The corresponding borders and wicks use the same colors.
-
-The chart currently has:
-
-lastValueVisible: false
-
-and:
-
-priceLineVisible: false
-
-18. DATA / TIMEFRAME ENGINE
-The Python timeframe engine is:
-
-def prepare_timeframe(
-    self,
-    df,
-    timeframe
-):
-
-The dataframe is copied:
-
-df = df.copy()
-
-Empty data is handled:
-
-if df.empty:
-    return df
-
-Timestamp conversion:
-
-df["timestamp"] = pd.to_datetime(
-    df["timestamp"]
-)
-
-Data is sorted chronologically:
-
-df.sort_values(
-    "timestamp"
-)
-
-and the index is reset.
-
-For:
-
-1m
-
-the dataframe is returned directly.
-
-19. DAILY TIMEFRAME
-For:
-
-1D
-
-data is grouped using:
-
-df["timestamp"].dt.date
-
-Aggregation:
-
-Open  = first
-High  = max
-Low   = min
-Close = last
-
-The resulting dataframe is returned as daily candles.
-
-20. INTRADAY TIMEFRAMES
-Intraday aggregation uses the configured timeframe minutes.
-
-The trading session begins at:
-
-09:15
-
-The code calculates the number of minutes from the session start and uses that to determine the candle bucket.
-
-The resulting candles are sorted/grouped chronologically.
-
-21. CHART DATA TRANSFER
-Python builds candle dictionaries like:
-
-{
-    "time": int(
-        row["timestamp"].timestamp()
-    ),
-    "open": float(row["Open"]),
-    "high": float(row["High"]),
-    "low": float(row["Low"]),
-    "close": float(row["Close"]),
-}
-
-The candle list is sent to JavaScript through:
-
-setChartData(
-    json.dumps(candles),
-    json.dumps(slot.sheet)
-);
-
-The timestamp is currently represented as Unix seconds.
-
-22. IMPORTANT DATA OBSERVATION
-During investigation, searches were performed for:
-
-drop_duplicates
-isna
-isnull
-isfinite
-nan
-inf
-
-No corresponding dataframe-cleaning logic was found in the searched section.
-
-This was investigated while diagnosing the JavaScript "Value is null" errors.
-
-The final root cause was not bad candle data.
-
-The issue was the Lightweight Charts coordinate lookup returning null for a requested timestamp.
-
-Therefore the final fix was placed in the JavaScript crosshair synchronization logic rather than unnecessarily changing the dataframe pipeline.
-
-23. TEMPORARY DEBUGGING OUTPUT
-During development the following diagnostic messages were used:
-
-[ACTIVE] ChartSlot ...
-[CLICK] ChartSlot ...
-[MOUSE MOVED] ...
-[CROSSHAIR] ...
-
-These helped verify:
-
-active chart selection
-chart clicks
-mouse movement
-crosshair synchronization
-After functionality was verified, unnecessary terminal logging was removed.
-
-Normal startup should not continuously print these debugging messages.
-
-24. PYTHON SYNTAX VERIFICATION
-The following command was used successfully:
-
-python -m py_compile src\main.py
-
-Successful compilation produces no output.
-
-This should be run after Python changes.
-
-25. APPLICATION START COMMAND
-The normal application command is:
-
-python src\main.py
-
-The application was successfully launched after the final crosshair fix.
-
-The latest test produced no:
-
-js: Uncaught Error: Value is null
-
-messages.
-
-26. USEFUL POWERSHELL COMMANDS
-Search Python source:
-
-Select-String -Path src\main.py -Pattern "pattern" -Context 5,15
-
-Search JavaScript:
-
-Select-String -Path src\web\chart_test.html -Pattern "pattern" -Context 5,15
-
-Inspect a section:
-
-Get-Content src\web\chart_test.html | Select-Object -Skip <line> -First <count>
-
-Inspect Python section:
-
-Get-Content src\main.py | Select-Object -Skip <line> -First <count>
-
-Compile Python:
-
-python -m py_compile src\main.py
-
-Run application:
-
-python src\main.py
-
-27. DEVELOPMENT DOCUMENTS
-The project currently contains:
-
-DEVELOPMENT_PROGRESS.md
-sync_javascript.txt
-sync_python_sections.txt
-
-These files are intended to help maintain continuity between development sessions.
-
-DEVELOPMENT_PROGRESS.md should be updated after major milestones.
-
-28. IMPORTANT FUTURE-SESSION INSTRUCTIONS
-When continuing development, first assume the current crosshair implementation is a working baseline.
-
-Before changing it:
-
-Open the current source files.
-Check the existing implementation.
-Do not blindly replace working code.
-Preserve the timestamp-based synchronization architecture.
-Preserve nearest-candle matching.
-Preserve destination-chart-specific prices.
-Preserve timeToCoordinate() validation.
-Preserve crosshair clearing.
-Preserve multi-layout behavior.
-Preserve drawing functionality.
-Preserve timeframe functionality.
-If a new change causes an error, diagnose the exact existing flow before modifying unrelated code.
-
-29. BACKUP POLICY FOR FUTURE DEVELOPMENT
-Existing backups are:
-
-src\main_backup.py
-src\main_backup_20260813_071320.py
-
-src\web\chart_test_backup.html
-src\web\chart_test_backup_20260813_071320.html
-
-Do not create another backup simply because a new development session starts.
-
-Before a major change:
-
-1. Check current working code.
-2. Check existing backups.
-3. Check GitHub sync status.
-4. Make the change.
-5. Test.
-6. If successful, sync to GitHub when appropriate.
-
-30. CURRENT RECOVERY POINT
-The current project has three levels of protection:
-
-LEVEL 1
-Current working files
-
-D:\Coding\Trading-Dashboard\src\main.py
-D:\Coding\Trading-Dashboard\src\web\chart_test.html
-
-
-LEVEL 2
-Local backups
-
-D:\Coding\Trading-Dashboard\src\main_backup.py
-D:\Coding\Trading-Dashboard\src\main_backup_20260813_071320.py
-
-D:\Coding\Trading-Dashboard\src\web\chart_test_backup.html
-D:\Coding\Trading-Dashboard\src\web\chart_test_backup_20260813_071320.html
-
-
-LEVEL 3
-GitHub remote repository
-
-https://github.com/saishankar709-cmd/Trading-Dashboard
-
-The latest working code has been synced to GitHub.
-
-31. CURRENT MILESTONE
-MILESTONE: MULTI-CHART CROSSHAIR SYNCHRONIZATION
-STATUS: COMPLETE
-
-Completed functionality:
-
-Mouse crosshair works on source chart.
-Source chart determines market timestamp.
-Timestamp is sent through Python.
-Other visible charts receive the timestamp.
-Each destination chart finds its nearest candle.
-Each destination chart uses its own close price.
-Crosshair is positioned on destination charts.
-Different instruments can therefore synchronize correctly.
-Mouse leave clears synchronized crosshairs.
-Lightweight Charts null-coordinate issue is handled.
-"Value is null" errors are resolved.
-Temporary debug terminal messages have been removed.
-Python syntax has been verified.
-Application has been successfully executed.
-Local backups exist.
-Latest working code has been synced to GitHub.
-32. NEXT DEVELOPMENT SESSION
-Start from:
-
-D:\Coding\Trading-Dashboard
-
-Activate .venv if necessary:
-
-.\.venv\Scripts\Activate.ps1
-
-Then verify:
-
-python -m py_compile src\main.py
-
-Then run:
-
-python src\main.py
-
-First confirm:
-
-Application launches
-Charts load
-Multiple layouts work
-Chart selection works
-Crosshair works
-Crosshair synchronizes
-No "Value is null" errors
-
-Only after confirming the baseline should the next feature be implemented.
-
-33. GOLDEN RULE FOR THE NEXT SESSION
-The current crosshair synchronization implementation is a working baseline.
-
-Do not change the synchronization architecture unless the next requirement specifically requires it.
-
-The most important rule is:
-
-SOURCE CHART
-    ↓
-MARKET TIME ONLY
-    ↓
-DESTINATION CHART
-    ↓
-NEAREST LOCAL CANDLE
-    ↓
-LOCAL CLOSE PRICE
-    ↓
-VALIDATE timeToCoordinate()
-    ↓
-SET CROSSHAIR
-
-This design must remain intact unless there is a deliberate architectural reason to change it.
-
-34. PROJECT ROOT TO REMEMBER
-For all future local development work, the project root is:
-
-D:\Coding\Trading-Dashboard
-
-Main Python file:
-
-D:\Coding\Trading-Dashboard\src\main.py
-
-Main chart HTML:
-
-D:\Coding\Trading-Dashboard\src\web\chart_test.html
-
-Lightweight Charts library:
-
-D:\Coding\Trading-Dashboard\src\web\lightweight-charts.js
-
-Development notes:
-
-D:\Coding\Trading-Dashboard\DEVELOPMENT_PROGRESS.md
-
-Local Python backups:
-
-D:\Coding\Trading-Dashboard\src\main_backup.py
-D:\Coding\Trading-Dashboard\src\main_backup_20260813_071320.py
-
-Local JavaScript/HTML backups:
-
-D:\Coding\Trading-Dashboard\src\web\chart_test_backup.html
-D:\Coding\Trading-Dashboard\src\web\chart_test_backup_20260813_071320.html
-
-GitHub repository:
-
-https://github.com/saishankar709-cmd/Trading-Dashboard
-
-This document is the current development handoff/reference point for the Trading Dashboard project.
---------------------------------------------------------------------------------------------------------------------------------------------
-15-Aug-2026  Requirement for popup.
-
-# Popup Chart & Mouse Hover Synchronization
-
-## Objective
-
-Implement a popup-chart functionality in the Trading Dashboard that allows any chart from the main window to be opened in an independent popup window while preserving all existing chart, drawing, resizing, timeframe, and crosshair functionality.
-
-The existing working chart architecture and current crosshair synchronization must remain stable and must not be rewritten unnecessarily.
-
-## Functional Requirements
-
-### 1. Open Chart in Popup
-
-* Every chart in the main dashboard must provide an option to open that chart in a separate popup window.
-* The popup must use the existing chart implementation and chart engine.
-* The popup must retain the same:
-
-  * Instrument/symbol
-  * Timeframe
-  * OHLC/candle data
-  * Chart configuration
-  * Drawing tools
-  * Crosshair functionality
-
-### 2. Popup Chart Resizing
-
-* The popup window must be freely resizable.
-* The chart must automatically resize with the popup window.
-* Candles, axes, crosshair, and drawing canvas must correctly adapt to the new dimensions.
-* Existing drawing resize/redraw functionality must continue to work without distortion or loss of drawings.
-
-### 3. Popup Drawing Functionality
-
-Every popup chart must support the same drawing functionality available in the main dashboard, including:
-
-* Trend line
-* Horizontal line
-* Vertical line
-* Rectangle
-* Drawing movement
-* Drawing resizing
-* Drawing deletion
-
-Drawings must continue to use market coordinates (`time` and `price`) rather than screen coordinates.
-
-Changing the popup size or timeframe must not cause drawings to disappear or become permanently misaligned.
-
-### 4. Popup Drawing Independence
-
-Each popup must maintain its own chart/drawing state.
-
-For the initial implementation:
-
-```text
-Main Chart
-    └── Own drawings
-
-Popup Chart
-    └── Own drawings
-```
-
-Drawing changes made inside a popup must not unintentionally modify drawings on the original main-window chart.
-
-Crosshair synchronization and drawing synchronization must remain separate concerns.
-
-### 5. Main Window ↔ Popup Mouse Hover Synchronization
-
-Mouse-hover crosshair synchronization must work in both directions.
-
-Example:
-
-```text
-Main Chart
-    ↓
-Market Timestamp
-    ↓
-Popup Chart
-```
-
-and:
-
-```text
-Popup Chart
-    ↓
-Market Timestamp
-    ↓
-Main Charts
-```
-
-Only the market timestamp must be synchronized.
-
-Each destination chart must independently locate its nearest candle and use its own local price/close value.
-
-The existing timestamp-based synchronization architecture must be preserved.
-
-### 6. Central Crosshair Synchronization
-
-Introduce a central synchronization mechanism that can manage both:
-
-* Main-window chart instances
-* Popup chart instances
-
-The synchronization manager must know:
-
-* Which charts are currently active/visible
-* Which popup windows are open
-* Whether synchronization is enabled for each layout
-* Whether synchronization is enabled for each popup
-
-Closed popup windows must be removed from the synchronization registry so that no synchronization calls are sent to destroyed charts.
-
-### 7. Layout-Level Mouse Sync Toggle
-
-Each dashboard layout must have its own Mouse Sync ON/OFF setting.
-
-Example:
-
-```text
-Layout 1 → ON
-Layout 2 → OFF
-Layout 3 → ON
-Layout 4 → ON
-Layout 6 → OFF
-Layout 8 → ON
-```
-
-When Mouse Sync is OFF for the active layout:
-
-* Hovering one main-window chart must not synchronize the crosshair to other charts.
-* The source chart must continue to display its own crosshair normally.
-
-Changing layouts must not unexpectedly reset the configured synchronization state.
-
-### 8. Popup-Level Mouse Sync Toggle
-
-Every popup window must have its own Mouse Sync ON/OFF control.
-
-Example:
-
-```text
-Popup 1 → ON
-Popup 2 → OFF
-Popup 3 → ON
-```
-
-When a popup's Mouse Sync is ON:
-
-```text
-Main Chart ↔ Popup
-```
-
-crosshair synchronization is allowed.
-
-When a popup's Mouse Sync is OFF:
-
-```text
-Popup
-  ↓
-Popup only
-```
-
-The popup must continue displaying its own local crosshair, but it must not send or receive synchronized crosshair updates.
-
-### 9. Synchronization Rules
-
-The synchronization flow must remain:
-
-```text
 Source Chart
     ↓
 Market Timestamp
     ↓
-Synchronization Manager
+Python synchronization layer
     ↓
 Destination Chart
     ↓
-Nearest Local Candle
+Nearest available candle
     ↓
-Destination's Own Price
+Destination chart's own price
+
+This allows charts containing different instruments and different price ranges to remain correctly synchronized in time.
+
+The synchronization architecture also supports the main dashboard and popup chart windows.
+
+2.7 Crosshair Error Handling
+Handled cases where a destination chart cannot immediately convert a timestamp into a valid screen coordinate.
+
+The JavaScript layer validates the calculated coordinate before calling the Lightweight Charts crosshair API.
+
+Invalid values such as:
+
+null
+undefined
+non-finite coordinates
+are rejected safely.
+
+This prevents errors such as:
+
+Value is null
+
+from interrupting chart interaction.
+
+2.8 Drawing Tools
+Implemented chart drawing functionality using a separate HTML Canvas overlay.
+
+Current drawing tools include:
+
+Trend Line
+Horizontal Line
+Vertical Line
+Rectangle
+Drawing coordinates are stored using market information such as:
+
+Time
+Price
+rather than permanently storing screen/pixel coordinates.
+
+This allows drawings to remain aligned with the chart during:
+
+Zoom
+Scroll
+Resize
+Chart updates
+Timeframe changes
+2.9 Drawing Interaction
+Implemented interaction with drawings, including:
+
+Selecting drawings
+Moving drawings
+Resizing supported drawings
+Deleting drawings
+Redrawing drawings when the chart viewport changes
+Drawing interaction uses hit testing and market-to-screen coordinate conversion.
+
+2.10 Popup Charts
+Implemented popup chart windows.
+
+A chart can be opened into a separate popup window while maintaining its own chart workspace.
+
+Popup windows support their own:
+
+Layout
+Chart slots
+Symbol
+Timeframe
+Drawing state
+Mouse synchronization state
+Multiple popup windows can be managed by the main dashboard.
+
+2.11 Main Dashboard ↔ Popup Synchronization
+Implemented crosshair synchronization between:
+
+Charts in the main dashboard
+Charts in popup windows
+Multiple popup windows
+The synchronization system is designed around market timestamp synchronization so that charts continue to show their own instrument prices while sharing the same time position.
+
+2.12 Mouse Synchronization Controls
+Implemented global mouse/crosshair synchronization controls.
+
+The dashboard can enable or disable synchronized mouse behavior.
+
+Layout-level synchronization control is also available, allowing synchronization behavior to be controlled for individual layouts.
+
+When synchronization is disabled, synchronized crosshairs can be cleared appropriately.
+
+2.13 Chart Resizing
+Implemented chart resizing support using browser-side resize detection.
+
+The chart responds to changes in its available window/container size so that popup windows and layout changes can resize correctly.
+
+2.14 Data Folder Selection
+Implemented the ability to select/change the market-data folder rather than permanently relying only on the initial configured data directory.
+
+This provides flexibility when moving the application between different local data locations.
+
+3. Version 1 Architecture
+The current architecture can be summarized as:
+
+Excel Market Data
+        ↓
+excel_loader.py
+        ↓
+Pandas DataFrame
+        ↓
+main.py
+        ↓
+    ChartSlot
+        ↓
+   QWebEngineView
+        ↓
+  QWebChannel
+        ↓
+ chart_test.html
+        ↓
+Lightweight Charts
+        +
+   Drawing Canvas
+
+The Python layer is primarily responsible for:
+
+Data loading
+Data validation
+Timeframe aggregation
+Application state
+Layout management
+Chart coordination
+Main/popup synchronization
+The JavaScript layer is primarily responsible for:
+
+Chart rendering
+Crosshair rendering
+Market-to-screen coordinate conversion
+Drawing rendering
+Drawing interaction
+Chart-side coordinate calculations
+This separation should be preserved during future optimization unless a measured performance bottleneck requires architectural changes.
+
+4. Version 1 Backup / Locking Policy
+Version 1 is now considered a stable reference point.
+
+Before beginning performance optimization:
+
+Create a complete local ZIP backup.
+Preserve the Version 1 source code in a separate private GitHub repository.
+Preserve the current project documentation.
+Preserve the Python dependency information.
+Preserve important market-data files separately if required.
+Do not modify the Version 1 backup while performing future development.
+The private backup repository should be treated as a read-only historical baseline.
+
+5. Next Major Goal — Performance Optimization
+The next development phase will focus on improving the application's performance without changing the existing Version 1 functionality.
+
+The goal is to make the dashboard faster and smoother, particularly when:
+
+Multiple charts are visible
+Six to eight charts are active
+Multiple popup windows are open
+Mouse/crosshair synchronization is enabled
+Large market-data files are loaded
+Large historical datasets are displayed
+Users frequently switch symbols and timeframes
+The performance work should be incremental and measurable.
+
+No major rewrite should be performed before identifying and measuring the actual bottlenecks.
+
+6. Performance Optimization Priorities
+Priority 1 — Crosshair Synchronization
+The current crosshair synchronization can generate frequent communication between Python and the individual QWebEngine/JavaScript chart instances.
+
+Future optimization should:
+
+Throttle high-frequency mouse events
+Process the latest mouse position instead of queuing obsolete positions
+Minimize unnecessary Python-to-JavaScript calls
+Avoid redundant synchronization when the timestamp has not changed
+Preserve the current timestamp-based synchronization behavior
+Priority 2 — Faster Nearest-Candle Search
+The current JavaScript nearest-candle lookup can scan the candle dataset linearly.
+
+Future optimization should replace the O(N) search with a binary-search-based lookup.
+
+Current concept:
+
+Target Timestamp
+      ↓
+Scan candle array
+      ↓
+Find nearest candle
+
+Target concept:
+
+Target Timestamp
+      ↓
+Binary Search
+      ↓
+Find nearest candle
+
+Expected complexity:
+
+Current: O(N)
+Target:  O(log N)
+
+This should significantly reduce the cost of crosshair synchronization on large datasets.
+
+Priority 3 — Market Data Caching
+Introduce a centralized data-management/cache layer.
+
+The objective is to prevent the same Excel worksheet from being loaded repeatedly when multiple charts use the same instrument.
+
+Target architecture:
+
+Excel File
     ↓
-Crosshair
-```
-
-Price values must never be copied from the source chart to another instrument.
-
-For example:
-
-```text
-NIFTY Chart
+Data Manager
     ↓
-Timestamp = T
+Raw Data Cache
     ↓
-BANKNIFTY Chart
+Timeframe Cache
     ↓
-Find nearest BANKNIFTY candle at T
-    ↓
-Use BANKNIFTY's own close
-```
+Chart Slots
 
-### 10. Existing Crosshair Safety
+Potential cache structure:
 
-The existing protection around:
+Symbol
+    ├── 1m
+    ├── 3m
+    ├── 5m
+    ├── 10m
+    ├── 15m
+    ├── 30m
+    ├── 1H
+    └── 1D
 
-```javascript
-timeToCoordinate()
-```
+This should reduce repeated Excel I/O and repeated timeframe aggregation.
 
-must be preserved.
+Priority 4 — Reduce Repeated Pandas Processing
+The Excel loader already normalizes timestamps, validates data, and sorts the dataset.
 
-If `timeToCoordinate()` returns `null` or `undefined`, the application must not call `setCrosshairPosition()` with invalid coordinates.
+Future optimization should avoid repeating the same operations inside the timeframe-processing pipeline.
 
-The existing error-handling/safety logic that prevents:
+Potential improvements include:
 
-```text
-Uncaught Error: Value is null
-```
+Avoid unnecessary DataFrame copies
+Avoid repeated timestamp conversion
+Avoid repeated sorting
+Reuse normalized data
+Cache aggregated results
+Priority 5 — Optimize Python → JavaScript Data Transfer
+The current implementation serializes candle data into JSON before passing it into the WebEngine.
 
-must not be removed or weakened.
+Future optimization should investigate:
 
-### 11. Existing Functionality Must Remain Unchanged
+Reducing unnecessary serialization
+Avoiding repeated full dataset transfers
+Reusing already loaded chart data where possible
+Incremental data updates where practical
+Binary or alternative transport mechanisms should only be considered if normal JSON transfer becomes a measured bottleneck.
 
-The implementation must not break any currently working functionality, including:
+Priority 6 — Optimize Candle Conversion
+The current Python implementation converts Pandas rows into individual candle dictionaries.
 
-* Main dashboard layouts
-* Chart loading
-* Instrument selection
-* Timeframe selection
-* Candle aggregation
-* Chart resizing
-* Chart selection
-* Crosshair synchronization
-* Drawing creation
-* Drawing movement
-* Drawing resizing
-* Drawing deletion
-* Existing `ChartSlot` behavior
+Future optimization should reduce the overhead of row-by-row processing, particularly for large datasets.
 
-The popup functionality must be implemented as an extension of the current architecture rather than as a replacement for the existing chart system.
+Vectorized Pandas operations or more efficient record conversion should be evaluated.
 
-## Expected Final Behavior
+Priority 7 — Reduce Unnecessary Chart Operations
+Investigate repeated operations such as:
 
-The final system should support:
+fitContent()
+price-scale auto-scaling
+repeated chart refreshes
+redundant chart updates
+These operations should only occur when actually required.
 
-```text
-                    TRADING DASHBOARD
-                           │
-              ┌────────────┴────────────┐
-              │                         │
-         MAIN WINDOW                POPUPS
-              │                         │
-       ┌──────┼──────┐            ┌────┼────┐
-       │      │      │            │    │    │
-     Chart  Chart  Chart        P1   P2   P3
-       │      │      │            │    │    │
-       └──────┼──────┘            └────┼────┘
-              │                         │
-              └──────────┬──────────────┘
-                         │
-                  CROSSHAIR SYNC
-                         │
-                 TIMESTAMP ONLY
-```
+Existing behavior must be tested before removing any duplicate-looking operations because some may have been added to resolve rendering timing issues.
 
-Each layout and popup independently controls whether mouse-hover synchronization is enabled.
+Priority 8 — Drawing Performance
+Drawing performance should be evaluated after the higher-priority data and synchronization optimizations.
 
-All charts remain fully functional independently, while synchronized charts share only the market timestamp and calculate their own local crosshair price.
+Potential future improvements include:
 
-## Acceptance Criteria
+Reducing unnecessary canvas redraws
+Redrawing only when required
+Optimizing drawing hit testing
+Reducing repeated coordinate calculations
+This is currently a lower priority because the number of drawings per chart is expected to be relatively small.
 
-The requirement is considered complete when:
+7. Future Performance Architecture
+The preferred future architecture is:
 
-* Any main-window chart can be opened in a popup.
-* Multiple popups can exist simultaneously.
-* Popup windows can be freely resized.
-* Charts automatically resize correctly inside popups.
-* Existing drawing tools work inside popups.
-* Drawings can be moved, resized, and deleted inside popups.
-* Popup resizing does not destroy drawings.
-* Main charts can synchronize their crosshair with popups.
-* Popups can synchronize their crosshair with main charts.
-* Synchronization works in both directions.
-* Layout-level Mouse Sync can be switched ON/OFF.
-* Popup-level Mouse Sync can be switched ON/OFF.
-* Turning synchronization OFF leaves the local chart crosshair working.
-* Different instruments use their own local candle prices.
-* Closing a popup removes it safely from synchronization.
-* No `Value is null` crosshair errors are introduced.
-* All existing functionality continues to work exactly as before.
+Trading Dashboard
+        ↓
+   Data Manager
+        ↓
+┌───────┴────────┐
+↓                ↓
 
-**Implementation principle:** preserve the current working Trading Dashboard architecture and add popup functionality and synchronization capabilities around it without destabilizing the existing chart, drawing, timeframe, and crosshair systems.
+Raw Data Cache Timeframe Cache
+│ │
+└───────┬────────┘
+↓
+Chart Slots
+↓
+QWebEngine
+↓
+JavaScript Chart
+↓
+Lightweight Charts
++
+Drawing Canvas
 
+Crosshair synchronization should eventually aim for:
+
+Mouse Movement
+      ↓
+   Throttle
+      ↓
+Timestamp Only
+      ↓
+Fast Lookup
+      ↓
+Destination Charts
+
+For charts inside the same WebEngine context, JavaScript-side synchronization may be evaluated later to reduce Python/Chromium communication.
+
+Python should remain the bridge for synchronization between separate popup windows where required.
+
+8. Performance Optimization Rules
+The following rules should be followed during Version 2 development:
+
+Do not change working Version 1 behavior unnecessarily.
+Do not rewrite the complete application.
+Optimize one subsystem at a time.
+Measure performance before and after major changes.
+Keep changes reversible.
+Preserve timestamp-based crosshair synchronization.
+Preserve independent chart prices during synchronization.
+Preserve drawing behavior.
+Test both main dashboard and popup charts after synchronization changes.
+Test 1-chart, 4-chart, 8-chart and popup scenarios.
+Test small and large datasets.
+Avoid premature optimization.
+Do not introduce complex binary transport unless profiling demonstrates that it is necessary.
+Maintain a stable backup of Version 1 throughout the optimization phase.
+9. Version 2 Objective
+The primary objective of Version 2 is:
+
+Improve performance and responsiveness while maintaining all functional capabilities of Version 1.
+
+Version 2 should provide:
+
+Faster chart loading
+Faster timeframe switching
+Faster symbol switching
+Smoother crosshair synchronization
+Better performance with 6–8 charts
+Better performance with popup windows
+Lower CPU usage where practical
+Reduced repeated Excel/Pandas processing
+Improved scalability for larger datasets
+Functionality should remain consistent with Version 1 unless a change is explicitly approved as a new feature.
+
+10. Long-Term Development Direction
+After performance optimization, future development can focus on additional trading-dashboard capabilities.
+
+Potential future areas include:
+
+Improved chart drawing tools
+Persistent drawing storage
+More advanced chart annotations
+Indicators
+Additional data sources
+Improved symbol management
+Workspace persistence
+User preferences/settings
+More scalable data storage
+Application packaging/distribution
+Additional performance profiling and monitoring
+These features should be considered only after the Version 1 baseline has been successfully optimized and stabilized.
+
+11. Versioning Strategy
+Version 1:
+
+Stable baseline
+Feature-complete current scope
+Locked before performance optimization
+
+Version 2:
+
+Performance optimization
+Same core functionality
+Improved scalability and responsiveness
+
+Future versions:
+
+New functionality
+New trading tools
+Additional data capabilities
+
+The Version 1 backup must remain unchanged and available as the historical reference implementation.
 
