@@ -1,0 +1,481 @@
+Trading Dashboard — Version 1 Software and Technology Stack
+1. Purpose
+
+This document records the software, programming languages, frameworks, libraries, and development tools used to build Version 1 of the Trading Dashboard application.
+
+The purpose is to make the Version 1 environment reproducible and provide a reference for future development and maintenance.
+
+2. Operating System
+Windows
+
+The current application is developed and tested in a Windows environment.
+
+The current development workflow uses Windows-specific paths and PowerShell commands.
+
+Example project/data locations used during development include:
+
+D:\Coding\Trading-Dashboard
+
+
+and:
+
+D:\DataP\Files
+
+
+Future versions may improve portability, but Version 1 is currently considered a Windows-oriented desktop application.
+
+3. Development Environment
+Visual Studio Code
+
+Visual Studio Code is the primary development environment used for the project.
+
+It is used for:
+
+Python development
+JavaScript development
+HTML development
+Project/file management
+Integrated PowerShell terminal
+Documentation editing
+Running the application
+PowerShell
+
+PowerShell is used through the Visual Studio Code integrated terminal for:
+
+Running Python commands
+Creating the Python environment
+Installing dependencies
+Running the application
+Creating backup archives
+Managing project files
+4. Programming Languages
+Python
+
+Python is the primary application programming language.
+
+Python is responsible for:
+
+Desktop application logic
+GUI management
+Market-data loading
+Excel processing
+Pandas DataFrame processing
+Timeframe aggregation
+Chart-slot management
+Layout management
+Popup windows
+Main/popup synchronization
+Communication with JavaScript
+
+Main Python files include:
+
+src/main.py
+
+
+and:
+
+src/data/excel_loader.py
+
+JavaScript
+
+JavaScript is used for browser-side chart functionality inside QWebEngine.
+
+JavaScript is responsible for:
+
+Chart initialization
+Lightweight Charts interaction
+Crosshair handling
+Chart-side timestamp handling
+Market-to-screen coordinate conversion
+Drawing tools
+Drawing interaction
+Canvas rendering
+Chart resizing
+
+Main JavaScript code is contained within:
+
+src/web/chart_test.html
+
+HTML
+
+HTML is used to provide the browser-side chart environment loaded by QWebEngine.
+
+The chart page contains:
+
+Chart container
+Drawing canvas
+JavaScript application logic
+Lightweight Charts integration
+QWebChannel integration
+
+Main file:
+
+src/web/chart_test.html
+
+CSS
+
+CSS is used within the chart HTML page for:
+
+Chart layout
+Drawing canvas positioning
+Chart controls
+Visual styling
+Popup/chart interface elements
+5. Python Frameworks and Libraries
+PySide6
+
+PySide6 is the primary desktop GUI framework.
+
+It provides the Qt/Python interface used for:
+
+Main application window
+Layouts
+Buttons
+Menus
+Popup windows
+Chart containers
+User interaction
+QWebEngine integration
+QWebChannel integration
+
+Major Qt components used include:
+
+QtWidgets
+QtCore
+QtGui
+QtWebEngineWidgets
+QtWebChannel
+Qt WebEngine
+
+Qt WebEngine provides the Chromium-based browser engine used to render the HTML/JavaScript trading charts inside the desktop application.
+
+Architecture:
+
+PySide6 Application
+      ↓
+QWebEngineView
+      ↓
+Chromium/Web Content
+      ↓
+HTML + JavaScript
+      ↓
+Lightweight Charts
+
+
+This allows the application to combine a native desktop GUI with a modern browser-based charting engine.
+
+QWebChannel
+
+QWebChannel provides communication between the Python/Qt application and JavaScript running inside QWebEngine.
+
+It is used for communication such as:
+
+Python
+  ↕
+JavaScript
+
+
+This communication is important for:
+
+Crosshair synchronization
+Chart state communication
+Mouse events
+Chart commands
+Main dashboard ↔ popup coordination
+Pandas
+
+Pandas is used for market-data processing.
+
+It provides:
+
+DataFrame management
+Excel data processing
+Timestamp handling
+Sorting
+Data validation
+Timeframe aggregation
+OHLC calculations
+
+The application uses Pandas as the main in-memory market-data processing layer.
+
+OpenPyXL
+
+OpenPyXL is used as the Excel engine for reading .xlsx market-data files through Pandas.
+
+The project uses Excel workbooks as the current market-data source.
+
+Typical flow:
+
+Excel .xlsx
+     ↓
+Pandas
+     ↓
+OpenPyXL engine
+     ↓
+DataFrame
+     ↓
+Trading Dashboard
+
+6. JavaScript Charting Library
+Lightweight Charts
+
+Lightweight Charts is the primary charting library used by the application.
+
+It provides:
+
+Candlestick charts
+Time scale
+Price scale
+Crosshair
+Zooming
+Scrolling
+Chart interaction
+
+The application adds its own drawing layer on top of Lightweight Charts using HTML Canvas.
+
+Architecture:
+
+Lightweight Charts
+       +
+HTML Canvas Drawing Layer
+
+
+This allows the project to provide both standard chart functionality and custom trading drawings.
+
+7. HTML Canvas
+
+HTML Canvas is used as a custom drawing layer above the Lightweight Charts chart.
+
+It is used for:
+
+Trend lines
+Horizontal lines
+Vertical lines
+Rectangles
+Drawing selection
+Drawing movement
+Drawing resizing
+Drawing rendering
+
+The drawings are represented using market coordinates such as:
+
+Timestamp
+Price
+
+and converted to screen coordinates when rendered.
+
+8. Data Format
+Microsoft Excel XLSX
+
+The current Version 1 market-data source is Excel .xlsx files.
+
+The expected OHLC data contains:
+
+Date
+Time
+Open
+High
+Low
+Close
+
+The application combines Date and Time into a market timestamp.
+
+9. Python Virtual Environment
+
+A Python virtual environment is used during development.
+
+Typical environment:
+
+.venv/
+
+
+The virtual environment contains the Python dependencies required to run the application.
+
+The .venv directory should NOT be treated as source code and should not be uploaded to the Version 1 GitHub archive.
+
+The environment should instead be recreated from the project's dependency file.
+
+10. Python Dependency Management
+
+The project uses a Python requirements file to record application dependencies.
+
+Primary dependency categories include:
+
+PySide6
+Pandas
+OpenPyXL
+
+The exact installed package versions should be recorded in a dependency lock/requirements file before major future development.
+
+Recommended command:
+
+pip freeze > requirements-lock.txt
+
+
+This should be performed from the active project virtual environment.
+
+The generated requirements-lock.txt should be preserved with the Version 1 archive.
+
+11. Development and Backup Tools
+Windows PowerShell
+
+Used for:
+
+Project management
+Backup creation
+ZIP creation
+Environment management
+Running application commands
+ZIP Archive
+
+A complete Version 1 project ZIP is maintained as a local backup.
+
+The ZIP provides a disaster-recovery copy independent of GitHub.
+
+12. Source Code Repository
+GitHub
+
+GitHub is used to store the project's source code and development documentation.
+
+The active repository is:
+
+Trading-Dashboard
+
+
+The Version 1 source should additionally be preserved in a separate private archive repository.
+
+Recommended archive repository:
+
+Trading-Dashboard-V1-Archive
+
+
+The archive repository should remain private and should be treated as a frozen Version 1 reference.
+
+13. Git
+
+Git is planned for future source-code version control but was not installed on the development PC during the initial Version 1 backup process.
+
+The current Version 1 backup strategy therefore uses:
+
+Local ZIP backup
+Private GitHub source archive
+
+Git can be installed later when Version 2 development begins.
+
+14. Version 1 Technology Architecture
+
+The complete technology stack can be summarized as:
+
+Windows
+   │
+   ↓
+Visual Studio Code
+   │
+   ↓
+Python
+   │
+   ├── PySide6
+   │     │
+   │     └── Qt WebEngine
+   │
+   ├── Pandas
+   │
+   └── OpenPyXL
+   │
+   ↓
+QWebEngineView
+   │
+   ↓
+HTML + CSS + JavaScript
+   │
+   ├── QWebChannel
+   │
+   ├── Lightweight Charts
+   │
+   └── HTML Canvas
+   │
+   ↓
+Trading Dashboard
+
+
+Data flow:
+
+Excel XLSX
+    ↓
+Pandas / OpenPyXL
+    ↓
+Python Data Processing
+    ↓
+Timeframe Aggregation
+    ↓
+QWebEngine
+    ↓
+Lightweight Charts
+    +
+Canvas Drawing Layer
+
+15. Version 1 Core Technology List
+Category	Technology
+Operating System	Windows
+IDE	Visual Studio Code
+Terminal	PowerShell
+Main Language	Python
+Web Language	JavaScript
+Markup	HTML
+Styling	CSS
+Desktop GUI	PySide6
+Browser Engine	Qt WebEngine
+Python ↔ JavaScript Bridge	QWebChannel
+Data Processing	Pandas
+Excel Engine	OpenPyXL
+Charting	Lightweight Charts
+Drawing Layer	HTML Canvas
+Market Data Format	Microsoft Excel XLSX
+Source Repository	GitHub
+Local Backup	ZIP
+16. Version 1 Environment Preservation
+
+Before starting Version 2 performance optimization, the following should be preserved:
+
+Complete Version 1 source code
+src/main.py
+src/data/excel_loader.py
+src/web/chart_test.html
+README.md
+DEVELOPMENT_PROGRESS.md
+requirements.txt
+requirements-lock.txt
+Version 1 backup information
+Python package versions
+Important configuration files
+Relevant application assets
+Separate backup of important market-data files
+
+The .venv directory itself does not need to be preserved in GitHub.
+
+17. Version 2 Performance Optimization
+
+The next development phase will focus on performance rather than introducing major new functionality.
+
+Initial optimization targets include:
+
+Crosshair synchronization throttling
+Binary-search nearest-candle lookup
+Market-data caching
+Timeframe-result caching
+Reducing repeated Pandas processing
+Reducing unnecessary DataFrame copies
+Optimizing Python-to-JavaScript data transfer
+Reducing unnecessary chart refresh operations
+Optimizing candle conversion
+Measuring CPU and memory usage with multiple charts and popup windows
+
+Version 1 functionality should remain unchanged while these optimizations are introduced.
+
+18. Version 1 Baseline Statement
+
+Version 1 is the stable functional baseline of the Trading Dashboard.
+
+All future performance improvements should be evaluated against this baseline.
+
+The Version 1 archive must remain unchanged so that the application can be restored or compared against the original implementation at any time.
