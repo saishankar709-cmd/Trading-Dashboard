@@ -3608,6 +3608,7 @@ class TradingDashboard(
             return
 
         # -------------------------------------------------
+        # -------------------------------------------------
         # SOURCE SYNC STATE
         # -------------------------------------------------
 
@@ -3624,15 +3625,10 @@ class TradingDashboard(
             ChartSlot
         ):
 
-            # -------------------------------------------------
-            # MAIN WINDOW MASTER SYNC SWITCH
-            # -------------------------------------------------
+            # Main is the source.
             if not self.sync_enabled:
                 return
 
-            # -------------------------------------------------
-            # MAIN WINDOW INTERNAL LAYOUT SYNC
-            # -------------------------------------------------
             if not self.layout_sync_enabled.get(
                 self.current_layout,
                 True
@@ -3644,17 +3640,24 @@ class TradingDashboard(
             ):
                 return
 
+        else:
+
+            return
+
+
         javascript = (
             "syncCrosshairFromPython("
             f"{time}"
             ");"
         )
 
+
         # =================================================
         # MAIN WINDOW CHARTS
         # =================================================
 
-        if self.layout_sync_enabled.get(
+        # MAIN must also be enabled as a TARGET.
+        if self.sync_enabled and self.layout_sync_enabled.get(
             self.current_layout,
             True
         ):
@@ -3686,6 +3689,7 @@ class TradingDashboard(
                     javascript
                 )
 
+
         # =================================================
         # POPUPS
         # =================================================
@@ -3705,7 +3709,9 @@ class TradingDashboard(
 
             for slot_id in popup.visible_slot_ids():
 
-                slot = popup.chart_slots[slot_id]
+                slot = popup.chart_slots[
+                    slot_id
+                ]
 
                 if not slot.chart_ready:
                     continue
@@ -4398,71 +4404,7 @@ class TradingDashboard(
             )
 
             self.panel_expanded = True
-
-    # =====================================================
-    # MASTER MOUSE SYNC
-    # =====================================================
-
-    def toggle_mouse_sync(
-        self,
-        checked
-    ):
-
-        self.sync_enabled = bool(
-            checked
-        )
-
-        self.update_mouse_sync_button()
-
-        # -------------------------------------------------
-        # Clear synchronized crosshairs when MAIN SYNC
-        # is turned OFF.
-        # -------------------------------------------------
-
-        if not self.sync_enabled:
-
-            # Clear other main-window charts
-            for slot_id in (
-                self.visible_slot_ids()
-            ):
-
-                slot = self.chart_slots[
-                    slot_id
-                ]
-
-                if not slot.chart_ready:
-                    continue
-
-                slot.browser.page().runJavaScript(
-                    "clearSyncedCrosshair();"
-                )
-
-            # Clear popup crosshairs
-            for popup in list(
-                self.popup_windows
-            ):
-
-                if popup.closing:
-                    continue
-
-                if not popup.sync_enabled:
-                    continue
-
-                for slot_id in (
-                    popup.visible_slot_ids()
-                ):
-
-                    slot = popup.chart_slots[
-                        slot_id
-                    ]
-
-                    if not slot.chart_ready:
-                        continue
-
-                    slot.browser.page().runJavaScript(
-                        "clearSyncedCrosshair();"
-                    )
-
+    
     # =====================================================
     # LAYOUT MOUSE SYNC
     # =====================================================
