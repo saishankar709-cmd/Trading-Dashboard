@@ -1019,17 +1019,25 @@ class ChartSlot:
         time,
         price
     ):
-
         if not self.chart_ready:
             return
 
         if time is None:
             return
 
-        self.parent.sync_crosshair(
-            self.slot_id,
-            float(time)
-        )
+        if isinstance(
+            self.parent,
+            PopupChartWindow
+        ):
+            self.parent.sync_crosshair(
+                self.slot_id,
+                float(time)
+            )
+        else:
+            self.parent.sync_crosshair(
+                self,
+                float(time)
+            )
 
     # =====================================================
     # CROSSHAIR RESULT
@@ -1041,7 +1049,9 @@ class ChartSlot:
     ):
 
         print(
-        f"[CROSSHAIR RESULT] slot={self.slot_id + 1} result={result}"
+            f"[CROSSHAIR RESULT] "
+            f"slot={self.slot_id + 1} "
+            f"result={result}"
         )
 
         if not result:
@@ -1058,16 +1068,27 @@ class ChartSlot:
         )
 
         print(
-            f"[CROSSHAIR TIME] slot={self.slot_id + 1} time={time}"
+            f"[CROSSHAIR TIME] "
+            f"slot={self.slot_id + 1} "
+            f"time={time}"
         )
 
         if time is None:
             return
 
-        self.parent.sync_crosshair(
-        self.slot_id,
-        time
-    )
+        if isinstance(
+            self.parent,
+            PopupChartWindow
+        ):
+            self.parent.sync_crosshair(
+                self.slot_id,
+                time
+            )
+        else:
+            self.parent.sync_crosshair(
+                self,
+                time
+            )
 
     # =====================================================
     # MOUSE LEFT
@@ -1075,9 +1096,17 @@ class ChartSlot:
 
     def mouse_left(self):
 
-        self.parent.clear_synced_crosshair(
-            self.slot_id
-        )
+        if isinstance(
+            self.parent,
+            PopupChartWindow
+        ):
+            self.parent.clear_synced_crosshair(
+                self.slot_id
+            )
+        else:
+            self.parent.clear_synced_crosshair(
+                self
+            )
 
     # =====================================================
     # CHART LOADED
@@ -2472,7 +2501,6 @@ class TradingDashboard(
         self.current_timeframe = "1m"
 
         # -------------------------------------------------
-        # MOUSE SYNC STATE
         # -------------------------------------------------
         # MOUSE SYNC STATE
         # -------------------------------------------------
@@ -2481,8 +2509,8 @@ class TradingDashboard(
         # originating from the MAIN WINDOW.
         self.sync_enabled = True
 
-        # Controls synchronization between charts
-        # inside the current MAIN WINDOW layout.
+        # Internal chart-to-chart synchronization
+        # for each layout.
         self.layout_sync_enabled = {
             layout_id: True
             for layout_id in LAYOUTS
@@ -4446,6 +4474,82 @@ class TradingDashboard(
                 slot.browser.page().runJavaScript(
                     "clearSyncedCrosshair();"
                 )
+
+    # =====================================================
+    # MASTER MOUSE SYNC
+    # =====================================================
+
+    def toggle_mouse_sync(
+        self,
+        checked
+    ):
+
+        self.sync_enabled = bool(
+            checked
+        )
+
+        self.update_mouse_sync_button()
+
+        # -------------------------------------------------
+        # When MAIN mouse sync is turned OFF,
+        # remove any crosshair that was synchronized
+        # into other charts/windows.
+        # -------------------------------------------------
+
+        if not self.sync_enabled:
+
+            javascript = (
+                "clearSyncedCrosshair();"
+            )
+
+            # ---------------------------------------------
+            # MAIN WINDOW CHARTS
+            # ---------------------------------------------
+
+            for slot_id in (
+                self.visible_slot_ids()
+            ):
+
+                slot = self.chart_slots[
+                    slot_id
+                ]
+
+                if not slot.chart_ready:
+                    continue
+
+                slot.browser.page().runJavaScript(
+                    javascript
+                )
+
+            # ---------------------------------------------
+            # POPUP WINDOWS
+            # ---------------------------------------------
+
+            for popup in list(
+                self.popup_windows
+            ):
+
+                if popup.closing:
+                    continue
+
+                if not popup.sync_enabled:
+                    continue
+
+                for slot_id in (
+                    popup.visible_slot_ids()
+                ):
+
+                    slot = popup.chart_slots[
+                        slot_id
+                    ]
+
+                    if not slot.chart_ready:
+                        continue
+
+                    slot.browser.page().runJavaScript(
+                        javascript
+                    )
+    
     # =====================================================
     # UPDATE SYNC BUTTON
     # =====================================================
