@@ -348,6 +348,7 @@ from PySide6.QtWidgets import (
     QToolButton,
     QWidgetAction,
     QFrame,
+    QFileDialog,
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from data.excel_loader import load_sheet
@@ -2522,6 +2523,8 @@ class TradingDashboard(
 
         self.current_timeframe = "1m"
 
+        self.data_folder = DATA_FOLDER
+
         # -------------------------------------------------
         # -------------------------------------------------
         # MOUSE SYNC STATE
@@ -2666,6 +2669,30 @@ class TradingDashboard(
 
         toolbar_layout.addWidget(
             self.load_button
+        )
+
+        # -------------------------------------------------
+        # DATA FOLDER
+        # -------------------------------------------------
+
+        self.folder_button = QPushButton(
+            "Data Folder"
+        )
+
+        self.folder_button.setFixedHeight(
+            27
+        )
+
+        self.folder_button.setToolTip(
+            "Select market data folder"
+        )
+
+        self.folder_button.clicked.connect(
+            self.select_data_folder
+        )
+
+        toolbar_layout.addWidget(
+            self.folder_button
         )
 
         toolbar_layout.addSpacing(
@@ -3210,7 +3237,21 @@ class TradingDashboard(
             f".xlsx"
         )
 
-        return DATA_FOLDER / filename
+        return self.data_folder / filename
+
+    def select_data_folder(self):
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            "Select Market Data Folder",
+            str(self.data_folder)
+        )
+
+        if not folder:
+            return
+
+        self.data_folder = Path(folder)
+
+        self.load_selected_date()
 
     # =====================================================
     # WORKBOOK
