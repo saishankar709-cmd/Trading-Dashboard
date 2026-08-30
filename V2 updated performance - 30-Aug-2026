@@ -1,0 +1,696 @@
+The key principle is: we decide the architecture now, then optimize inside that architecture rather than repeatedly redesigning it.
+
+Trading Dashboard V2 — Performance & Architecture Requirements
+Status: Development baseline / architectural contract
+Scope: src/ application and current development implementation
+Excluded: ScrapCodes/ is not part of this requirements document unless explicitly brought into scope later.
+
+1. V2 Objective
+The primary objective of Trading Dashboard V2 is:
+
+Build a fast, low-RAM, multi-chart trading dashboard while preserving all existing V1 functionality.
+
+Performance optimization must prioritize:
+
+Crosshair responsiveness
+Data loading
+Timeframe processing
+RAM usage
+Python ↔ JavaScript communication
+Chart rendering
+Drawing performance
+An optimization is not considered successful if it significantly increases RAM usage merely to improve CPU or latency.
+
+2. Architectural Decision — FINAL DIRECTION
+V2 will retain the existing fundamental architecture:
+
+Python / PySide6
+        │
+        ├── Application / UI
+        │
+        ├── Market Data Layer
+        │
+        └── Chart Manager
+                 │
+                 ├── Chart Instance 1
+                 ├── Chart Instance 2
+                 ├── Chart Instance 3
+                 └── ...
+                         │
+                  QWebEngineView
+                         │
+                    QWebChannel
+                         │
+                  JavaScript Chart
+                         │
+                 Lightweight Charts
+
+We will not replace Qt/QWebEngine/Lightweight Charts with another framework during V2.
+
+We will optimize the existing architecture.
+
+3. Chart Architecture
+Each visible chart remains an independent chart slot.
+
+A chart slot owns:
+
+instrument
+timeframe
+chart state
+candle data required by the chart
+Lightweight Charts instance
+QWebEngineView
+JavaScript bridge
+The application must support the existing layouts, including:
+
+1 chart
+2 charts
+3 charts
+4 charts
+5 charts
+6 charts
+8 charts
+The architecture must therefore be designed and tested for 8 simultaneous charts.
+
+4. Chart Lifecycle
+We will separate:
+
+Chart existence
+Whether a chart/WebEngine instance exists.
+
+Chart visibility
+Whether that chart is currently visible in the selected layout.
+
+Changing layouts should not unnecessarily recreate the entire application architecture.
+
+However, V2 must investigate whether keeping unused QWebEngine instances alive creates excessive RAM usage.
+
+The final lifecycle strategy will be chosen based on measured RAM usage.
+
+The following principle is mandatory:
+
+Do not destroy/recreate chart engines simply as an optimization unless benchmarking proves the lifecycle change is beneficial overall.
+
+5. Market Data Architecture
+The market-data layer will become a distinct responsibility.
+
+Conceptually:
+
+Data Source
+    ↓
+Data Manager
+    ↓
+Raw OHLC data
+    ↓
+Timeframe Engine
+    ↓
+Processed timeframe data
+    ↓
+Chart Manager
+    ↓
+JavaScript
+
+The chart layer must not independently perform expensive market-data loading whenever possible.
+
+6. Excel Loading
+Current behavior loads Excel sheets through pandas.
+
+V2 will introduce a controlled data-loading strategy.
+
+Requirements:
+
+Avoid unnecessary repeated pd.read_excel() operations.
+Avoid loading the same sheet repeatedly when data is already available.
+Do not blindly cache every sheet forever.
+RAM usage must be monitored.
+Cache eviction/lifecycle must be deterministic if caching is introduced.
+Raw data should have a single authoritative representation where practical.
+The objective is:
+
+Repeated request
+      ↓
+Already loaded?
+      ├── YES → reuse
+      └── NO  → load once
+
+But caching must remain RAM-conscious.
+
+7. Raw Data Ownership
+V2 should establish one authoritative raw-data representation per instrument/data source.
+
+We must avoid unnecessary duplication such as:
+
+DataFrame
+   ↓
+copy
+   ↓
+list[dict]
+   ↓
+JSON string
+   ↓
+JavaScript objects
+   ↓
+Lightweight Charts internal data
+
+The same market data should not exist in multiple Python structures unless there is a measurable reason.
+
+Any additional representation must have a documented purpose.
+
+8. Timeframe Engine
+Timeframe processing becomes a dedicated optimization target.
+
+Supported existing timeframe behavior must remain unchanged.
+
+The engine must:
+
+preserve OHLC correctness
+preserve session boundaries
+preserve timestamps
+preserve daily aggregation
+preserve intraday aggregation
+preserve chart output
+The engine should avoid:
+
+unnecessary DataFrame copies
+unnecessary sorting
+repeated conversions
+repeated aggregation of unchanged data
+Where practical:
+
+Raw data
+    ↓
+Timeframe result
+    ↓
+Cache/reuse
+
+A timeframe should not be recalculated unnecessarily when the underlying source data has not changed.
+
+9. Crosshair Architecture
+Crosshair synchronization remains timestamp-based.
+
+This is a fixed architectural requirement.
+
+Source chart
+    ↓
+Mouse X position
+    ↓
+Source market timestamp
+    ↓
+Synchronization manager
+    ↓
+Destination charts
+    ↓
+Nearest candle for that timestamp
+    ↓
+Destination candle's own price
+
+The source chart's price must never be used as the destination chart's price.
+
+This behavior must remain unchanged.
+
+10. Crosshair Lookup
+The current destination lookup performs a linear search through candle data.
+
+V2 will replace this with an efficient indexed lookup.
+
+Target complexity:
+
+Current:
+O(N)
+
+Target:
+O(log N)
+
+or better where practical.
+
+The preferred implementation is a timestamp-indexed/binary-search strategy.
+
+Requirements:
+
+preserve nearest-candle behavior
+preserve missing-time handling
+preserve null coordinate protection
+preserve crosshair visual behavior
+support different instruments with different trading timestamps
+No full-array scan should occur on every crosshair synchronization event unless explicitly justified.
+
+11. Crosshair Event Rate
+Mouse movement can generate a very high number of events.
+
+V2 must prevent unnecessary work.
+
+The synchronization system should:
+
+avoid processing identical timestamps repeatedly
+avoid unnecessary Python ↔ JavaScript calls
+avoid synchronizing invisible charts
+avoid unnecessary destination updates
+avoid redundant crosshair positioning
+Conceptually:
+
+Mouse movement
+      ↓
+Determine timestamp
+      ↓
+Same timestamp as previous?
+      ├── YES → skip
+      └── NO  → synchronize
+
+Any throttling/debouncing must preserve perceived real-time responsiveness.
+
+12. Python ↔ JavaScript Communication
+QWebChannel remains the communication architecture.
+
+However, communication volume must be minimized.
+
+V2 should avoid:
+
+mouse event
+    ↓
+Python
+    ↓
+JavaScript
+    ↓
+Python
+    ↓
+JavaScript
+
+when the same result can be achieved with fewer crossings.
+
+Communication responsibilities should be clearly separated:
+
+Python
+Responsible for:
+
+application state
+instrument selection
+timeframe selection
+data management
+chart coordination
+JavaScript
+Responsible for:
+
+chart rendering
+mouse/chart coordinates
+crosshair rendering
+drawing
+browser-side chart operations
+The boundary should be optimized rather than removed.
+
+13. JavaScript Candle Data
+The JavaScript side must avoid unnecessary copies of candle data.
+
+Current structures such as:
+
+currentCandleData
+currentDataTimes
+Lightweight Charts internal data
+
+must be evaluated for duplication.
+
+V2 should retain only the structures necessary for:
+
+chart rendering
+timestamp lookup
+crosshair synchronization
+drawing/interaction
+If a timestamp index is introduced, it must be memory-efficient.
+
+14. Chart Rendering
+Chart rendering must remain visually equivalent to V1.
+
+V2 should investigate:
+
+unnecessary fitContent() calls
+unnecessary autoscaling
+duplicate redraws
+redundant applyOptions() calls
+repeated chart initialization
+unnecessary updates when data/state has not changed
+A chart should update only what actually changed.
+
+15. Full Data Reload vs Incremental Update
+V2 should distinguish between:
+
+Full reload
+Used when:
+
+instrument changes
+timeframe changes
+complete dataset changes
+Incremental update
+Used when only a small amount of new data changes.
+
+The architecture should support incremental updates where the data source allows it.
+
+However, incremental updates must not be introduced merely for complexity's sake if the current source is static Excel data.
+
+The implementation must match the actual data-source requirements.
+
+16. Memory Requirements
+RAM is a first-class performance metric.
+
+Testing must include:
+
+1 chart
+2 charts
+4 charts
+6 charts
+8 charts
+popup windows where applicable
+For each scenario measure:
+
+startup RAM
+post-load RAM
+peak RAM
+RAM after timeframe changes
+RAM after symbol changes
+RAM after repeated refreshes
+RAM after opening/closing popup charts
+A repeated operation must not continuously increase RAM.
+
+Particular attention must be paid to:
+
+Python objects
+DataFrames
+JSON strings
+QWebEngine processes
+JavaScript arrays
+Lightweight Charts data
+cached datasets
+
+17. No Memory Leaks
+V2 must specifically test for:
+
+Load chart
+    ↓
+Change symbol
+    ↓
+Change timeframe
+    ↓
+Repeat
+
+and:
+
+Open popup
+    ↓
+Close popup
+    ↓
+Repeat
+
+Memory must eventually stabilize.
+
+A performance optimization that causes memory growth is rejected.
+
+18. Performance Instrumentation
+Before major optimization, V2 must establish a baseline.
+
+Instrumentation should measure:
+
+Data
+Excel read duration
+DataFrame preparation duration
+timeframe aggregation duration
+candle serialization duration
+JavaScript data-transfer duration
+Crosshair
+mouse event frequency
+timestamp lookup duration
+Python ↔ JS round-trip duration
+destination lookup duration
+total synchronization duration
+Memory
+process RSS
+peak memory
+memory before/after major operations
+Rendering
+chart initialization duration
+data-set duration
+layout-change duration
+Instrumentation must be lightweight and removable/disableable.
+
+19. Optimization Method
+Every major optimization follows this exact process:
+
+1. Establish baseline
+        ↓
+2. Identify bottleneck
+        ↓
+3. Form hypothesis
+        ↓
+4. Make ONE controlled change
+        ↓
+5. Test functionality
+        ↓
+6. Measure performance
+        ↓
+7. Measure RAM
+        ↓
+8. Compare against baseline
+        ↓
+9. Keep or revert
+
+We do not combine five architectural changes and then attempt to determine which one helped.
+
+20. Regression Requirements
+Every optimization must preserve:
+
+chart loading
+instrument switching
+timeframe switching
+chart layouts
+8-chart operation
+crosshair synchronization
+timestamp alignment
+destination-specific prices
+drawing functionality
+popup functionality
+existing UI behavior
+Performance improvements that break existing functionality are rejected.
+
+21. Architecture Changes
+The following are not allowed during normal optimization:
+
+replacing PySide6/Qt
+replacing QWebEngine
+replacing Lightweight Charts
+replacing the entire Python/JavaScript communication model
+rewriting the application from scratch
+moving the whole application to another framework
+Such changes require a separate architectural review.
+
+The goal is to make the current architecture efficient, not repeatedly replace it.
+
+22. Code Organization Direction
+The current large main.py should eventually be decomposed only when there is a clear responsibility boundary.
+
+The target conceptual modules are:
+
+Application
+    │
+    ├── Layout Manager
+    │
+    ├── Chart Manager
+    │       └── Chart Slot
+    │
+    ├── Data Manager
+    │       ├── Raw Data
+    │       └── Cache
+    │
+    ├── Timeframe Engine
+    │
+    ├── Crosshair Manager
+    │
+    └── Communication Layer
+
+However:
+
+Do not perform a large refactor solely to make the code look cleaner.
+
+Refactoring should happen when it enables a performance improvement, testability, ownership boundary, or prevents architectural duplication.
+
+23. V2 Development Phases
+Phase 0 — Architecture Freeze
+Document and preserve the architecture defined in this document.
+
+No major rewrite.
+
+Phase 1 — Performance Baseline
+Build measurement instrumentation.
+
+Measure:
+
+startup
+data loading
+timeframe switching
+symbol switching
+crosshair
+1/4/8 chart RAM
+repeated operations
+Deliverable: baseline performance report.
+
+Phase 2 — Crosshair Engine
+Optimize:
+
+event frequency
+timestamp lookup
+destination lookup
+redundant synchronization
+Python ↔ JS traffic
+Target:
+
+O(N) lookup → O(log N) or better
+
+Deliverable: faster crosshair with identical behavior.
+
+Phase 3 — Data Loading
+Optimize:
+
+Excel reads
+repeated sheet loading
+raw-data ownership
+controlled caching
+Deliverable: faster symbol/data loading without uncontrolled RAM growth.
+
+Phase 4 — Timeframe Engine
+Optimize:
+
+copies
+sorting
+aggregation
+repeated calculations
+timeframe caching/reuse
+Deliverable: faster timeframe changes with identical OHLC results.
+
+Phase 5 — Data Transfer
+Optimize:
+
+Python
+   ↓
+serialization
+   ↓
+QWebEngine
+   ↓
+JavaScript
+
+Reduce unnecessary data copies and serialization overhead.
+
+Deliverable: lower transfer latency and lower peak memory.
+
+Phase 6 — Chart Rendering
+Optimize:
+
+fitContent
+autoscaling
+redraws
+chart initialization
+unnecessary updates
+Deliverable: smoother chart updates.
+
+Phase 7 — RAM Optimization
+Analyze:
+
+QWebEngine instances
+JavaScript data
+cached data
+DataFrames
+popup lifecycle
+hidden chart lifecycle
+Deliverable: stable RAM behavior under 8-chart workloads and repeated operations.
+
+Phase 8 — Drawing Performance
+Only after the core data/crosshair/RAM architecture is stable.
+
+Optimize:
+
+drawing operations
+canvas updates
+mouse interaction
+redraw frequency
+object management
+Existing drawing behavior must remain unchanged.
+
+Phase 9 — Final Regression & V2 Freeze
+Run the complete test matrix.
+
+Test:
+
+1 chart
+2 charts
+4 charts
+6 charts
+8 charts
++
+popup
++
+symbol changes
++
+timeframe changes
++
+crosshair
++
+drawing
++
+repeated operations
+
+Once the performance targets are met:
+
+V2 architecture is frozen.
+
+Future feature development must work within this architecture unless a separate architecture-change decision is made.
+
+24. Priority Order
+The development priority is fixed as:
+
+P0  Baseline / instrumentation
+ ↓
+P1  Crosshair
+ ↓
+P2  Data loading
+ ↓
+P3  Timeframe processing
+ ↓
+P4  Python ↔ JavaScript transfer
+ ↓
+P5  Chart rendering
+ ↓
+P6  RAM
+ ↓
+P7  Drawing
+ ↓
+P8  Final regression
+
+RAM is monitored throughout every phase, not postponed until the end.
+
+25. Definition of "Done"
+V2 is not considered complete because the code is "faster."
+
+A task is complete only when:
+
+functionality is preserved
+benchmark results improve
+RAM does not regress materially
+repeated operations remain stable
+8-chart operation remains functional
+no known regression is introduced
+the implementation fits this architecture
+26. Golden Rule
+The following rule governs all future development:
+
+Do not rewrite the architecture to solve an individual performance problem. Improve the component responsible for that problem while preserving the V2 architecture.
+
+Any proposed architectural change must first demonstrate that the existing architecture cannot reasonably solve the problem.
+
+27. Current Next Task
+The immediate next development task is:
+
+PHASE 1 — PERFORMANCE BASELINE & INSTRUMENTATION
+No major optimization should be implemented before this baseline exists.
+
+The first implementation should therefore add measurement only.
+
+After the baseline is recorded, we proceed to Phase 2 — Crosshair Engine Optimization.
+
+This should serve as our master V2 requirements document. From this point onward, I would treat the architecture above as frozen and make each optimization against it, rather than redesigning the system every time we encounter a bottleneck.
+
+Next task: Phase 1 — build the baseline instrumentation and define the exact benchmark/test matrix.
