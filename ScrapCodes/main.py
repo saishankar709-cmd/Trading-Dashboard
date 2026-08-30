@@ -394,10 +394,24 @@ class ChartBridge(QObject):
 # =========================================================
 class ClickableChartView(QWebEngineView):
 
+    print("[TEST] ClickableChartView class loaded")
     clicked = Signal()
     mouse_moved = Signal(int, int)
     mouse_left = Signal()
 
+    def javaScriptConsoleMessage(
+        self,
+        level,
+        message,
+        lineNumber,
+        sourceID
+    ):
+        print("[TEST] javaScriptConsoleMessage CALLED")
+        print(
+            f"[JS] {message} "
+            f"(line {lineNumber}, source={sourceID})"
+        )
+    
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -878,7 +892,7 @@ class ChartSlot:
         self.browser.setContextMenuPolicy(
             Qt.NoContextMenu
         )
-             
+                     
         self.bridge = ChartBridge()
 
         self.bridge.mouse_moved.connect(
