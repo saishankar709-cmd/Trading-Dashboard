@@ -2420,8 +2420,25 @@ class PopupChartWindow(QMainWindow):
                 "payload_bytes": len(javascript),
             },
         ):
+            test_javascript = (
+                "try { "
+                "setChartData("
+                f"{json.dumps(candles)},"
+                f"{json.dumps(slot.sheet)}"
+                "); "
+                "return 'OK'; "
+                "} catch (e) { "
+                "return 'ERROR: ' + e.name + ': ' + e.message; "
+                "}"
+            )
+
+            print(f"[JS SUBMIT TEST] slot={slot_id + 1}")
+
             slot.browser.page().runJavaScript(
-                javascript
+                "1 + 1",
+                lambda result, sid=slot_id: print(
+                    f"[JS CALLBACK TEST] slot={sid + 1} result={result}"
+                )
             )
 
         slot.update_header()
