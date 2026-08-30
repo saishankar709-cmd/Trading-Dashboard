@@ -1183,16 +1183,28 @@ class ChartSlot:
         if not ok:
             return
 
-        self.browser.page().runJavaScript(
-            "typeof setChartData",
-            lambda result: print(
-                f"[CHART JS READY] slot={self.slot_id + 1} "
+        def js_ready(result):
+            print(
+                f"[CHART JS READY] "
+                f"slot={self.slot_id + 1} "
                 f"setChartData={result}"
             )
-        )
 
-        self.parent.refresh_slot(
-            self.slot_id
+            if result != "function":
+                print(
+                    f"[CHART ERROR] "
+                    f"slot={self.slot_id + 1} "
+                    f"setChartData is not available"
+                )
+                return
+
+            self.parent.refresh_slot(
+                self.slot_id
+            )
+
+        self.browser.page().runJavaScript(
+            "typeof setChartData",
+            js_ready
         )
 
     # =====================================================
@@ -2437,27 +2449,11 @@ class PopupChartWindow(QMainWindow):
                 "payload_bytes": len(javascript),
             },
         ):
-            test_javascript = (
-                "try { "
-                "setChartData("
-                f"{json.dumps(candles)},"
-                f"{json.dumps(slot.sheet)}"
-                "); "
-                "return 'OK'; "
-                "} catch (e) { "
-                "return 'ERROR: ' + e.name + ': ' + e.message; "
-                "}"
-            )
-
-            print(f"[JS SUBMIT TEST] slot={slot_id + 1}")
 
             slot.browser.page().runJavaScript(
-                "1 + 1",
-                lambda result, sid=slot_id: print(
-                    f"[JS CALLBACK TEST] slot={sid + 1} result={result}"
-                )
+                javascript
             )
-
+        
         slot.update_header()
 
     # =====================================================
