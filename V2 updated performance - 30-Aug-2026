@@ -1,696 +1,1202 @@
-The key principle is: we decide the architecture now, then optimize inside that architecture rather than repeatedly redesigning it.
+Trading Dashboard
+Version: V2 — Updated 30-Aug-2026
+1. Purpose
+This document defines the final V2 performance and application architecture for the Trading Dashboard.
 
-Trading Dashboard V2 — Performance & Architecture Requirements
-Status: Development baseline / architectural contract
-Scope: src/ application and current development implementation
-Excluded: ScrapCodes/ is not part of this requirements document unless explicitly brought into scope later.
+The objective is to improve startup performance, refresh performance, memory usage, chart synchronization, and scalability without repeatedly redesigning the application architecture.
 
-1. V2 Objective
-The primary objective of Trading Dashboard V2 is:
+V2 must establish clear ownership between:
 
-Build a fast, low-RAM, multi-chart trading dashboard while preserving all existing V1 functionality.
+Workbook/data loading
+Contract data management
+Timeframe transformation
+Chart data preparation
+JavaScript/browser rendering
+Crosshair synchronization
+Layout management
+Performance monitoring
+The architecture defined here should be treated as the baseline architecture for all subsequent development.
 
-Performance optimization must prioritize:
+2. Confirmed Data Model
+The application uses a workbook containing multiple contract sheets.
 
-Crosshair responsiveness
-Data loading
-Timeframe processing
-RAM usage
-Python ↔ JavaScript communication
-Chart rendering
-Drawing performance
-An optimization is not considered successful if it significantly increases RAM usage merely to improve CPU or latency.
+Example:
 
-2. Architectural Decision — FINAL DIRECTION
-V2 will retain the existing fundamental architecture:
+Workbook.xlsx
+│
+├── NIFTY
+├── SENSEX
+├── BANKNIFTY
+├── NIFTY2681124750
+├── NIFTY2681124800
+├── ...
+└── many other contract sheets
 
-Python / PySide6
-        │
-        ├── Application / UI
-        │
-        ├── Market Data Layer
-        │
-        └── Chart Manager
-                 │
-                 ├── Chart Instance 1
-                 ├── Chart Instance 2
-                 ├── Chart Instance 3
-                 └── ...
-                         │
-                  QWebEngineView
-                         │
-                    QWebChannel
-                         │
-                  JavaScript Chart
-                         │
-                 Lightweight Charts
+Each worksheet represents an independently selectable contract/instrument.
 
-We will not replace Qt/QWebEngine/Lightweight Charts with another framework during V2.
+A chart can select any available contract.
 
-We will optimize the existing architecture.
+Multiple charts may select the same contract.
 
-3. Chart Architecture
-Each visible chart remains an independent chart slot.
+Multiple charts may also select the same contract with different timeframes.
 
-A chart slot owns:
+Example:
 
-instrument
-timeframe
-chart state
-candle data required by the chart
-Lightweight Charts instance
-QWebEngineView
-JavaScript bridge
-The application must support the existing layouts, including:
+Chart 1 → NIFTY → 1m
+Chart 2 → NIFTY → 1m
+Chart 3 → NIFTY → 5m
+Chart 4 → BANKNIFTY → 1m
+Chart 5 → BANKNIFTY → 5m
+Chart 6 → SENSEX → 1m
+Chart 7 → NIFTY2681124750 → 1m
+Chart 8 → NIFTY2681124750 → 1m
 
-1 chart
-2 charts
-3 charts
-4 charts
-5 charts
-6 charts
-8 charts
-The architecture must therefore be designed and tested for 8 simultaneous charts.
+This requirement is fundamental to the V2 architecture.
 
-4. Chart Lifecycle
-We will separate:
+3. Core V2 Architecture Principle
+The application must use shared data ownership.
 
-Chart existence
-Whether a chart/WebEngine instance exists.
+A chart must not independently load and process the same workbook sheet every time it refreshes.
 
-Chart visibility
-Whether that chart is currently visible in the selected layout.
+The central principle is:
 
-Changing layouts should not unnecessarily recreate the entire application architecture.
+One contract
+      ↓
+One raw-data load
+      ↓
+Shared raw data
+      ↓
+Timeframe-specific processing
+      ↓
+Shared processed data
+      ↓
+Multiple charts
 
-However, V2 must investigate whether keeping unused QWebEngine instances alive creates excessive RAM usage.
+Therefore:
 
-The final lifecycle strategy will be chosen based on measured RAM usage.
+The cache/data identity is based on (contract, timeframe), while raw data is cached by contract.
 
-The following principle is mandatory:
+4. High-Level Architecture
+The final V2 architecture should be:
 
-Do not destroy/recreate chart engines simply as an optimization unless benchmarking proves the lifecycle change is beneficial overall.
+┌─────────────────────────────────────────────────────────┐
+│                    Trading Dashboard                    │
+│                                                         │
+│  Layout Manager                                         │
+│      │                                                  │
+│      ├── ChartSlot 1                                    │
+│      ├── ChartSlot 2                                    │
+│      ├── ChartSlot 3                                    │
+│      ├── ChartSlot 4                                    │
+│      ├── ChartSlot 5                                    │
+│      ├── ChartSlot 6                                    │
+│      ├── ChartSlot 7                                    │
+│      └── ChartSlot 8                                    │
+│                    │                                    │
+└────────────────────┼────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│                    Data Repository                      │
+│                                                         │
+│  Raw Contract Cache                                     │
+│       │                                                 │
+│       ├── NIFTY                                         │
+│       ├── SENSEX                                        │
+│       ├── BANKNIFTY                                     │
+│       └── ...                                           │
+│                                                         │
+│  Timeframe Cache                                        │
+│       │                                                 │
+│       ├── (NIFTY, 1m)                                   │
+│       ├── (NIFTY, 5m)                                   │
+│       ├── (BANKNIFTY, 1m)                               │
+│       └── ...                                           │
+│                                                         │
+│  Workbook change detection                              │
+│  Lazy loading                                           │
+│  Cache invalidation                                     │
+└───────────────────────┬─────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────┐
+│                    Excel Data Source                     │
+│                                                         │
+│                     Workbook.xlsx                       │
+└─────────────────────────────────────────────────────────┘
 
-5. Market Data Architecture
-The market-data layer will become a distinct responsibility.
+5. Responsibility Separation
+V2 must maintain strict separation between the following layers.
+
+5.1 Data Source Layer
+Responsible for:
+
+Reading workbook sheets
+Reading raw contract data
+Handling Excel-specific operations
+Reporting workbook/file errors
+This layer must not know about charts.
+
+Existing excel_loader.py belongs here.
+
+5.2 Data Repository Layer
+A new central repository layer must own application data.
+
+Responsibilities:
+
+Raw contract caching
+Timeframe caching
+Lazy loading
+Cache lookup
+Cache invalidation
+Workbook modification detection
+Preventing duplicate loads
+Providing data to multiple charts
+The repository must be the single data access point for chart consumers.
 
 Conceptually:
 
-Data Source
-    ↓
-Data Manager
-    ↓
-Raw OHLC data
-    ↓
-Timeframe Engine
-    ↓
-Processed timeframe data
-    ↓
-Chart Manager
-    ↓
-JavaScript
+data = repository.get(
+    contract="NIFTY",
+    timeframe="1m",
+)
 
-The chart layer must not independently perform expensive market-data loading whenever possible.
+The chart must not call:
 
-6. Excel Loading
-Current behavior loads Excel sheets through pandas.
+load_sheet(...)
 
-V2 will introduce a controlled data-loading strategy.
+directly.
 
-Requirements:
+5.3 Raw Contract Cache
+Raw workbook data must be cached using:
 
-Avoid unnecessary repeated pd.read_excel() operations.
-Avoid loading the same sheet repeatedly when data is already available.
-Do not blindly cache every sheet forever.
-RAM usage must be monitored.
-Cache eviction/lifecycle must be deterministic if caching is introduced.
-Raw data should have a single authoritative representation where practical.
-The objective is:
+contract
 
-Repeated request
+as the primary key.
+
+Example:
+
+raw_cache:
+
+"NIFTY"              → DataFrame
+"SENSEX"             → DataFrame
+"BANKNIFTY"          → DataFrame
+"NIFTY2681124750"    → DataFrame
+
+If four charts use NIFTY:
+
+Chart 1 ─┐
+Chart 2 ─┤
+Chart 3 ─┼──→ raw_cache["NIFTY"]
+Chart 4 ─┘
+
+Only one Excel read should be required while the cache is valid.
+
+6. Timeframe Cache
+Processed timeframe data must be cached using:
+
+(contract, timeframe)
+
+as the cache key.
+
+Examples:
+
+("NIFTY", "1m")
+("NIFTY", "5m")
+("NIFTY", "15m")
+("BANKNIFTY", "1m")
+("SENSEX", "1D")
+
+Example:
+
+NIFTY raw data
+      │
+      ├── 1m  ──→ cached
+      ├── 5m  ──→ cached
+      ├── 15m ──→ cached
+      └── 1D  ──→ cached
+
+Multiple charts using the same contract/timeframe must reuse the same processed dataset.
+
+7. Lazy Loading Requirement
+The repository must use lazy loading.
+
+The application must NOT load every workbook sheet during startup.
+
+Example:
+
+Workbook
+   │
+   ├── NIFTY
+   ├── SENSEX
+   ├── BANKNIFTY
+   ├── 500 other contracts
+   │
+   ▼
+Application starts
+   │
+   ▼
+Load only contracts currently required
+
+If the user only displays:
+
+NIFTY
+SENSEX
+BANKNIFTY
+
+only those contracts should be loaded.
+
+8. Duplicate Load Prevention
+The repository must guarantee that simultaneous or sequential requests for the same contract do not unnecessarily cause repeated workbook reads.
+
+Example:
+
+Chart 1 → NIFTY
+Chart 2 → NIFTY
+Chart 3 → NIFTY
+Chart 4 → NIFTY
+
+Expected:
+
+Excel:
+    NIFTY → 1 load
+
+Repository:
+    NIFTY → shared
+
+Charts:
+    4 consumers
+
+Not:
+
+NIFTY → 4 Excel loads
+
+9. Workbook Change Detection
+The workbook is externally changeable.
+
+V2 must detect workbook changes.
+
+At minimum, the repository must track:
+
+Workbook path
+Workbook modification timestamp
+
+Conceptually:
+
+Workbook unchanged
       ↓
-Already loaded?
-      ├── YES → reuse
-      └── NO  → load once
+reuse cache
 
-But caching must remain RAM-conscious.
+Workbook changed
+      ↓
+invalidate affected cache
+      ↓
+reload on next request
 
-7. Raw Data Ownership
-V2 should establish one authoritative raw-data representation per instrument/data source.
+The system must not reload Excel merely because a chart refreshes.
 
-We must avoid unnecessary duplication such as:
+10. Cache Invalidation
+When the workbook changes:
+
+Raw contract cache
+        ↓
+invalidate
+        ↓
+Timeframe cache
+        ↓
+invalidate
+
+At minimum, all cached derived data associated with changed raw data must become invalid.
+
+The architecture should permit future optimization toward sheet-level invalidation if workbook change tracking can identify the affected sheet.
+
+11. ChartSlot Responsibility
+ChartSlot must become primarily a view/controller consumer.
+
+It should own:
+
+Selected contract
+Selected timeframe
+Chart/browser instance
+Chart display state
+User interaction state
+It should request data from the repository.
+
+It should NOT own:
+
+Excel loading
+Global data caching
+Duplicate prevention
+Workbook change detection
+Shared DataFrame ownership
+Target flow:
+
+ChartSlot
+   │
+   │ request contract + timeframe
+   ▼
+DataRepository
+   │
+   ▼
+Chart-ready data
+   │
+   ▼
+ChartSlot
+   │
+   ▼
+JavaScript chart
+
+12. Refresh Pipeline
+The V2 refresh pipeline should become:
+
+Chart refresh requested
+        │
+        ▼
+Identify contract
+        │
+        ▼
+Identify timeframe
+        │
+        ▼
+DataRepository.get(contract, timeframe)
+        │
+        ├── raw cache hit
+        │
+        └── raw cache miss → load workbook sheet
+        │
+        ▼
+Timeframe cache lookup
+        │
+        ├── hit → reuse
+        │
+        └── miss → transform raw data
+        │
+        ▼
+Prepare chart payload
+        │
+        ▼
+Serialize payload
+        │
+        ▼
+Submit JavaScript
+        │
+        ▼
+Browser renders chart
+
+13. Chart Payload Layer
+The repository should eventually return a well-defined chart-data representation rather than exposing internal DataFrame implementation details to the UI.
+
+Conceptually:
 
 DataFrame
+    ↓
+ChartData
+    ↓
+ChartSlot
+    ↓
+JavaScript
+
+This creates an architectural boundary that allows future replacement of:
+
+Pandas
+Excel
+JSON format
+chart library
+data source
+without redesigning the entire application.
+
+14. Timeframe Processing
+Timeframe transformation must be performed once per:
+
+(contract, timeframe)
+
+rather than once per chart.
+
+Example:
+
+NIFTY / 5m
+
+used by five charts must be processed once.
+
+The five charts consume the same processed result.
+
+15. 1-Minute Data
+For 1m timeframe, the repository should avoid unnecessary transformations.
+
+If the source data is already 1-minute data:
+
+raw 1m
    ↓
-copy
-   ↓
-list[dict]
-   ↓
-JSON string
-   ↓
-JavaScript objects
-   ↓
-Lightweight Charts internal data
+reuse / normalize only when required
 
-The same market data should not exist in multiple Python structures unless there is a measurable reason.
+Avoid unnecessary:
 
-Any additional representation must have a documented purpose.
+DataFrame copies
+sorting
+conversions
+aggregation
+when data is already normalized and valid.
 
-8. Timeframe Engine
-Timeframe processing becomes a dedicated optimization target.
+This optimization should be implemented only after preserving correctness.
 
-Supported existing timeframe behavior must remain unchanged.
+16. Higher Timeframes
+For higher timeframes:
 
-The engine must:
+1m → 5m
+1m → 15m
+1m → 30m
+1m → 1h
+1m → 1D
 
-preserve OHLC correctness
-preserve session boundaries
-preserve timestamps
-preserve daily aggregation
-preserve intraday aggregation
-preserve chart output
-The engine should avoid:
+aggregation should happen from the shared raw contract data.
 
-unnecessary DataFrame copies
-unnecessary sorting
-repeated conversions
-repeated aggregation of unchanged data
-Where practical:
+Example:
 
-Raw data
-    ↓
-Timeframe result
-    ↓
-Cache/reuse
+NIFTY raw 1m
+      │
+      ├── 5m
+      ├── 15m
+      ├── 30m
+      └── 1D
 
-A timeframe should not be recalculated unnecessarily when the underlying source data has not changed.
+Each result is cached.
 
-9. Crosshair Architecture
-Crosshair synchronization remains timestamp-based.
+17. Crosshair Synchronization
+Crosshair synchronization is a separate performance domain.
 
-This is a fixed architectural requirement.
+It must NOT be mixed with data-loading optimization.
 
-Source chart
-    ↓
-Mouse X position
-    ↓
-Source market timestamp
-    ↓
-Synchronization manager
-    ↓
-Destination charts
-    ↓
-Nearest candle for that timestamp
-    ↓
-Destination candle's own price
+Current behavior can involve multiple:
 
-The source chart's price must never be used as the destination chart's price.
+runJavaScript(...)
 
-This behavior must remain unchanged.
+calls across charts.
 
-10. Crosshair Lookup
-The current destination lookup performs a linear search through candle data.
+V2 should establish a dedicated:
 
-V2 will replace this with an efficient indexed lookup.
+CrosshairController
 
-Target complexity:
-
-Current:
-O(N)
+or equivalent centralized synchronization mechanism.
 
 Target:
-O(log N)
 
-or better where practical.
+User moves crosshair
+        │
+        ▼
+Identify source chart
+        │
+        ▼
+Calculate synchronization coordinate
+        │
+        ▼
+Notify eligible charts
+        │
+        ▼
+Update crosshairs
 
-The preferred implementation is a timestamp-indexed/binary-search strategy.
+The system should avoid unnecessary updates to:
 
-Requirements:
+hidden charts
+source chart
+charts that do not need updating
+charts already at the requested crosshair position
+18. Crosshair Synchronization Scope
+Crosshair synchronization must support:
 
-preserve nearest-candle behavior
-preserve missing-time handling
-preserve null coordinate protection
-preserve crosshair visual behavior
-support different instruments with different trading timestamps
-No full-array scan should occur on every crosshair synchronization event unless explicitly justified.
+Main dashboard charts
+Popup charts where applicable
+Multiple contracts
+Different timeframes
+The synchronization mechanism must not assume that all charts contain identical timestamps.
 
-11. Crosshair Event Rate
-Mouse movement can generate a very high number of events.
+For different contracts/timeframes, timestamp matching must be handled explicitly.
 
-V2 must prevent unnecessary work.
+Example:
 
-The synchronization system should:
+NIFTY / 1m
+SENSEX / 5m
+BANKNIFTY / 15m
 
-avoid processing identical timestamps repeatedly
-avoid unnecessary Python ↔ JavaScript calls
-avoid synchronizing invisible charts
-avoid unnecessary destination updates
-avoid redundant crosshair positioning
-Conceptually:
+The crosshair system must determine the appropriate corresponding timestamp/index rather than assuming identical candle positions.
 
-Mouse movement
-      ↓
-Determine timestamp
-      ↓
-Same timestamp as previous?
-      ├── YES → skip
-      └── NO  → synchronize
+19. JavaScript Communication
+The application currently has multiple runJavaScript() call sites.
 
-Any throttling/debouncing must preserve perceived real-time responsiveness.
+V2 should classify them into categories:
 
-12. Python ↔ JavaScript Communication
-QWebChannel remains the communication architecture.
+1. Chart data
+2. Crosshair
+3. Drawing
+4. Chart initialization
+5. UI state
+6. Popup state
+7. Resize/layout
+8. Other UI commands
 
-However, communication volume must be minimized.
+Only chart-data communication belongs to the initial data-performance pipeline.
 
-V2 should avoid:
+Other JavaScript communication must be optimized independently.
 
-mouse event
-    ↓
-Python
-    ↓
-JavaScript
-    ↓
-Python
-    ↓
-JavaScript
+20. Chart Data Transfer Optimization
+The current measured chart payload is approximately:
 
-when the same result can be achieved with fewer crossings.
+34,490 bytes
 
-Communication responsibilities should be clearly separated:
+for 375 candles.
 
-Python
-Responsible for:
+Current measured serialization:
 
-application state
-instrument selection
-timeframe selection
-data management
-chart coordination
-JavaScript
-Responsible for:
+~0.4–0.8 ms
 
-chart rendering
-mouse/chart coordinates
-crosshair rendering
-drawing
-browser-side chart operations
-The boundary should be optimized rather than removed.
+and JavaScript submission:
 
-13. JavaScript Candle Data
-The JavaScript side must avoid unnecessary copies of candle data.
+~0.2–0.4 ms
 
-Current structures such as:
+Therefore JSON serialization and Python-side JavaScript submission are not currently the primary bottleneck.
 
-currentCandleData
-currentDataTimes
-Lightweight Charts internal data
+Optimization must not be performed prematurely.
 
-must be evaluated for duplication.
+Future optimization may consider:
 
-V2 should retain only the structures necessary for:
+incremental updates
+binary formats
+compact JSON
+reduced fields
+browser-side data retention
+but only if measurements demonstrate a real bottleneck.
 
-chart rendering
-timestamp lookup
-crosshair synchronization
-drawing/interaction
-If a timestamp index is introduced, it must be memory-efficient.
+21. Startup Architecture
+Startup should become:
 
-14. Chart Rendering
-Chart rendering must remain visually equivalent to V1.
+Application startup
+        │
+        ▼
+Create UI
+        │
+        ▼
+Create DataRepository
+        │
+        ▼
+Create chart slots
+        │
+        ▼
+Read layout configuration
+        │
+        ▼
+Identify contracts actually required
+        │
+        ▼
+Repository loads required contracts lazily
+        │
+        ▼
+Create/reuse timeframe datasets
+        │
+        ▼
+Populate charts
 
-V2 should investigate:
+The application must not perform unnecessary duplicate refresh cycles.
 
-unnecessary fitContent() calls
-unnecessary autoscaling
-duplicate redraws
-redundant applyOptions() calls
-repeated chart initialization
-unnecessary updates when data/state has not changed
-A chart should update only what actually changed.
+22. Duplicate Startup Refresh Investigation
+Current performance instrumentation has demonstrated approximately 16 chart refresh operations in the observed startup scenario even though the dashboard has 8 charts.
 
-15. Full Data Reload vs Incremental Update
-V2 should distinguish between:
+This must be investigated before finalizing startup optimization.
 
-Full reload
-Used when:
+Required investigation:
 
-instrument changes
-timeframe changes
-complete dataset changes
-Incremental update
-Used when only a small amount of new data changes.
+Why are 16 refreshes occurring?
 
-The architecture should support incremental updates where the data source allows it.
+Determine:
 
-However, incremental updates must not be introduced merely for complexity's sake if the current source is static Excel data.
+Which 8 belong to initial chart creation
+Which 8 belong to secondary initialization/update
+Whether popup charts are involved
+Whether layout restoration triggers another refresh
+Whether chart configuration triggers another refresh
+Whether duplicate refreshes can be eliminated
+The preferred V2 solution is:
 
-The implementation must match the actual data-source requirements.
+eliminate unnecessary duplicate work
 
-16. Memory Requirements
-RAM is a first-class performance metric.
+rather than merely hiding it behind a cache.
 
-Testing must include:
+23. Memory Architecture
+Memory usage is a first-class V2 concern.
 
-1 chart
-2 charts
-4 charts
-6 charts
-8 charts
-popup windows where applicable
-For each scenario measure:
+The repository must avoid unnecessary copies of identical contract data.
 
-startup RAM
-post-load RAM
-peak RAM
-RAM after timeframe changes
-RAM after symbol changes
-RAM after repeated refreshes
-RAM after opening/closing popup charts
-A repeated operation must not continuously increase RAM.
+Bad:
 
-Particular attention must be paid to:
+Chart 1 → NIFTY DataFrame A
+Chart 2 → NIFTY DataFrame B
+Chart 3 → NIFTY DataFrame C
 
-Python objects
-DataFrames
-JSON strings
-QWebEngine processes
-JavaScript arrays
-Lightweight Charts data
-cached datasets
+Preferred:
 
-17. No Memory Leaks
-V2 must specifically test for:
+                    NIFTY DataFrame
+                         │
+             ┌───────────┼───────────┐
+             ▼           ▼           ▼
+          Chart 1     Chart 2     Chart 3
 
-Load chart
-    ↓
-Change symbol
-    ↓
-Change timeframe
-    ↓
-Repeat
+Derived timeframe data should similarly be shared.
 
-and:
+24. Memory Ownership
+The architecture must clearly define ownership:
 
-Open popup
-    ↓
-Close popup
-    ↓
-Repeat
+DataRepository
+    owns cached data
 
-Memory must eventually stabilize.
+ChartSlot
+    references/consumes data
 
-A performance optimization that causes memory growth is rejected.
+Browser
+    owns rendered chart state
 
-18. Performance Instrumentation
-Before major optimization, V2 must establish a baseline.
+A chart must not independently maintain unnecessary copies of large datasets.
 
-Instrumentation should measure:
+25. Cache Lifecycle
+The repository must support:
+
+LOAD
+  ↓
+CACHE
+  ↓
+REUSE
+  ↓
+INVALIDATE
+  ↓
+RELOAD
+
+Future V2.x versions may add:
+
+LRU eviction
+maximum memory limits
+explicit contract unloading
+background preloading
+but these should not be introduced until required.
+
+26. Performance Monitoring
+performance_monitor.py will remain part of the architecture.
+
+Performance measurements should exist around:
+
+Excel read
+Repository lookup
+Cache hit/miss
+Timeframe transformation
+Chart data preparation
+JSON serialization
+JavaScript submission
+Crosshair synchronization
+Startup refresh
+
+Example:
+
+[PERF] repository.raw_cache.hit
+[PERF] repository.raw_cache.miss
+[PERF] repository.timeframe_cache.hit
+[PERF] repository.timeframe_cache.miss
+
+27. Required Performance Metrics
+V2 should measure:
 
 Data
-Excel read duration
-DataFrame preparation duration
-timeframe aggregation duration
-candle serialization duration
-JavaScript data-transfer duration
-Crosshair
-mouse event frequency
-timestamp lookup duration
-Python ↔ JS round-trip duration
-destination lookup duration
-total synchronization duration
+Excel read time
+Raw cache hit rate
+Raw cache miss rate
+Timeframe cache hit rate
+Timeframe transformation time
 Memory
-process RSS
-peak memory
-memory before/after major operations
+Startup RSS
+Peak RSS
+RSS after chart initialization
+RSS after repeated refreshes
+RSS after contract changes
 Rendering
-chart initialization duration
-data-set duration
-layout-change duration
-Instrumentation must be lightweight and removable/disableable.
+Candle preparation time
+Serialization time
+JS submission time
+Browser rendering where measurable
+Synchronization
+Crosshair event frequency
+Crosshair processing time
+Number of charts updated per event
+Duplicate synchronization events
+28. Performance Targets
+Targets should be treated as engineering goals, not assumptions.
 
-19. Optimization Method
-Every major optimization follows this exact process:
+For repeated use of the same contract:
 
-1. Establish baseline
-        ↓
-2. Identify bottleneck
-        ↓
-3. Form hypothesis
-        ↓
-4. Make ONE controlled change
-        ↓
-5. Test functionality
-        ↓
-6. Measure performance
-        ↓
-7. Measure RAM
-        ↓
-8. Compare against baseline
-        ↓
-9. Keep or revert
+First request:
+Excel read + processing
 
-We do not combine five architectural changes and then attempt to determine which one helped.
+Subsequent request:
+cache lookup + chart delivery
 
-20. Regression Requirements
-Every optimization must preserve:
+Repeated chart refreshes should not repeatedly perform:
 
-chart loading
-instrument switching
-timeframe switching
-chart layouts
-8-chart operation
-crosshair synchronization
-timestamp alignment
-destination-specific prices
-drawing functionality
-popup functionality
-existing UI behavior
-Performance improvements that break existing functionality are rejected.
+read_excel()
+prepare_timeframe()
 
-21. Architecture Changes
-The following are not allowed during normal optimization:
+for identical data.
 
-replacing PySide6/Qt
-replacing QWebEngine
-replacing Lightweight Charts
-replacing the entire Python/JavaScript communication model
-rewriting the application from scratch
-moving the whole application to another framework
-Such changes require a separate architectural review.
+For 8 charts using the same contract/timeframe, the target is:
 
-The goal is to make the current architecture efficient, not repeatedly replace it.
+1 raw contract load
+1 timeframe transformation
+8 chart consumers
 
-22. Code Organization Direction
-The current large main.py should eventually be decomposed only when there is a clear responsibility boundary.
+rather than:
 
-The target conceptual modules are:
+8 raw loads
+8 transformations
+8 chart consumers
 
-Application
-    │
-    ├── Layout Manager
-    │
-    ├── Chart Manager
-    │       └── Chart Slot
-    │
-    ├── Data Manager
-    │       ├── Raw Data
-    │       └── Cache
-    │
-    ├── Timeframe Engine
-    │
-    ├── Crosshair Manager
-    │
-    └── Communication Layer
+29. Example V2 Scenario
+User configures:
 
-However:
+Chart 1 → NIFTY → 1m
+Chart 2 → NIFTY → 1m
+Chart 3 → NIFTY → 5m
+Chart 4 → BANKNIFTY → 1m
+Chart 5 → BANKNIFTY → 5m
+Chart 6 → SENSEX → 1m
+Chart 7 → NIFTY2681124750 → 1m
+Chart 8 → NIFTY2681124750 → 1m
 
-Do not perform a large refactor solely to make the code look cleaner.
+Repository behavior:
 
-Refactoring should happen when it enables a performance improvement, testability, ownership boundary, or prevents architectural duplication.
+Raw cache:
+    NIFTY
+    BANKNIFTY
+    SENSEX
+    NIFTY2681124750
 
-23. V2 Development Phases
-Phase 0 — Architecture Freeze
-Document and preserve the architecture defined in this document.
+Timeframe cache:
+    NIFTY / 1m
+    NIFTY / 5m
+    BANKNIFTY / 1m
+    BANKNIFTY / 5m
+    SENSEX / 1m
+    NIFTY2681124750 / 1m
 
-No major rewrite.
+Expected Excel sheet loads:
 
-Phase 1 — Performance Baseline
-Build measurement instrumentation.
+NIFTY              → 1
+BANKNIFTY          → 1
+SENSEX             → 1
+NIFTY2681124750    → 1
 
+Total:
+
+4 raw loads
+
+rather than one load per chart.
+
+30. Contract Change
+When a user changes:
+
+Chart 1:
+NIFTY → SENSEX
+
+the chart should request:
+
+repository.get("SENSEX", timeframe)
+
+If SENSEX is already cached:
+
+No Excel read
+No timeframe recomputation if cached
+
+If not cached:
+
+Load SENSEX
+Process requested timeframe
+Cache result
+Return to chart
+
+31. Timeframe Change
+When a user changes:
+
+NIFTY / 1m
+       ↓
+NIFTY / 5m
+
+the repository checks:
+
+("NIFTY", "5m")
+
+If cached:
+
+return cached result
+
+If not:
+
+use raw NIFTY
+    ↓
+generate 5m
+    ↓
+cache
+    ↓
+return
+
+The workbook must not be reread.
+
+32. Layout Architecture
+Layout configuration must remain independent of data storage.
+
+A layout should contain chart configuration such as:
+
+contract
+timeframe
+chart settings
+position
+visibility
+
+The layout must not contain duplicated DataFrames.
+
+Conceptually:
+
+Layout
+  │
+  ├── Chart configuration
+  │
+  └── references contract/timeframe
+             │
+             ▼
+       DataRepository
+
+33. Popup Architecture
+Popup charts must use the same DataRepository as the main dashboard.
+
+They must NOT create an independent data cache.
+
+Example:
+
+Main Dashboard ──────┐
+                     │
+Popup Charts ────────┼──→ DataRepository
+                     │
+Other views ─────────┘
+
+If a popup displays:
+
+NIFTY / 1m
+
+while the main dashboard already has:
+
+NIFTY / 1m
+
+the popup must reuse the existing cached data.
+
+34. Error Handling
+The repository must provide clear errors for:
+
+Missing worksheet
+Invalid contract
+Invalid timeframe
+Workbook unavailable
+Workbook changed while loading
+Invalid data
+Empty worksheet
+Errors must not corrupt existing valid cached data.
+
+35. Threading / Concurrency
+The initial V2 implementation should prioritize correctness.
+
+Do not introduce complex threading merely to make Excel loading asynchronous.
+
+First establish:
+
+single authoritative repository
+correct caching
+duplicate prevention
+clear ownership
+
+Background loading can be introduced later if profiling demonstrates startup blocking as a significant issue.
+
+If concurrency is later introduced, duplicate requests for the same cache key must still be coalesced.
+
+36. Architecture Rules
+The following rules are mandatory for V2:
+
+Rule 1
+ChartSlot must not directly own shared workbook data.
+
+Rule 2
+ChartSlot must not directly perform repeated load_sheet() calls.
+
+Rule 3
+Raw data cache key:
+
+contract
+
+Rule 4
+Processed data cache key:
+
+(contract, timeframe)
+
+Rule 5
+Data loading must be lazy.
+
+Rule 6
+Identical contract requests must reuse raw data.
+
+Rule 7
+Identical contract/timeframe requests must reuse processed data.
+
+Rule 8
+Workbook changes must invalidate affected cached data.
+
+Rule 9
+Main dashboard and popup charts must share the same repository.
+
+Rule 10
+Crosshair synchronization must remain a separate subsystem.
+
+Rule 11
+JavaScript call sites must not all be optimized as one problem.
+
+Rule 12
+Performance changes must be supported by measurements.
+
+37. Development Phases
+Phase V2.1 — Baseline & Instrumentation
+Completed/ongoing:
+
+Performance monitor
+Excel read measurements
+Data processing measurements
+Candle construction measurements
+JSON serialization measurements
+JavaScript submission measurements
+Current finding:
+
+Excel loading is significantly more expensive
+than timeframe/candle/JSON/JS preparation.
+
+Phase V2.2 — Trace Duplicate Startup Refresh
+Before implementing repository integration:
+
+Trace all startup refresh_slot() calls
+Identify why 8 charts result in approximately 16 refreshes
+Remove unnecessary duplicate refreshes where possible
+Keep performance instrumentation
+Phase V2.3 — Implement DataRepository
+Create a dedicated repository module.
+
+Responsibilities:
+
+Raw contract cache
+Timeframe cache
+Lazy loading
+Cache lookup
+Cache invalidation
+Workbook change detection
+
+No UI logic.
+
+Phase V2.4 — Integrate excel_loader.py
+Refactor data access so:
+
+DataRepository → excel_loader
+
+rather than:
+
+ChartSlot → excel_loader
+
+excel_loader.py remains responsible only for reading/normalizing source data.
+
+Phase V2.5 — Integrate refresh_slot()
+Change:
+
+refresh_slot()
+    ↓
+load_sheet()
+
+to:
+
+refresh_slot()
+    ↓
+DataRepository.get(contract, timeframe)
+
+Keep chart rendering behavior unchanged initially.
+
+This isolates the data architecture change.
+
+Phase V2.6 — Memory Optimization
 Measure:
 
-startup
-data loading
-timeframe switching
-symbol switching
-crosshair
-1/4/8 chart RAM
-repeated operations
-Deliverable: baseline performance report.
+Raw DataFrame duplication
+Timeframe DataFrame duplication
+Chart payload duplication
+Browser-side memory
+Peak RSS
+Only then implement additional memory optimizations.
 
-Phase 2 — Crosshair Engine
+Phase V2.7 — Crosshair Optimization
+Create/centralize crosshair synchronization.
+
 Optimize:
 
 event frequency
-timestamp lookup
-destination lookup
-redundant synchronization
-Python ↔ JS traffic
-Target:
+chart lookup
+timestamp matching
+unnecessary JavaScript calls
+hidden chart updates
+Phase V2.8 — JavaScript/Rendering Optimization
+Only after data-layer optimization is stable.
 
-O(N) lookup → O(log N) or better
+Investigate:
 
-Deliverable: faster crosshair with identical behavior.
+incremental chart updates
+payload reduction
+browser-side caching
+rendering frequency
+unnecessary chart redraws
+Phase V2.9 — Stress Testing
+Test configurations including:
 
-Phase 3 — Data Loading
-Optimize:
+8 charts / same contract
+8 charts / different contracts
+8 charts / mixed contracts
+8 charts / mixed timeframes
+multiple popups
+repeated contract changes
+repeated timeframe changes
+workbook modification
+long-running session
 
-Excel reads
-repeated sheet loading
-raw-data ownership
-controlled caching
-Deliverable: faster symbol/data loading without uncontrolled RAM growth.
+38. Acceptance Criteria
+V2 architecture is considered successful when:
 
-Phase 4 — Timeframe Engine
-Optimize:
+Data loading
+The same contract is not repeatedly loaded from Excel while its cache is valid.
 
-copies
-sorting
-aggregation
-repeated calculations
-timeframe caching/reuse
-Deliverable: faster timeframe changes with identical OHLC results.
+Timeframe processing
+The same (contract, timeframe) is not repeatedly transformed while its cache is valid.
 
-Phase 5 — Data Transfer
-Optimize:
+Multiple charts
+Multiple charts can safely consume the same cached dataset.
 
-Python
-   ↓
-serialization
-   ↓
-QWebEngine
-   ↓
-JavaScript
+Multiple contracts
+Different workbook sheets work independently.
 
-Reduce unnecessary data copies and serialization overhead.
+Multiple timeframes
+The same contract can be displayed at different timeframes simultaneously.
 
-Deliverable: lower transfer latency and lower peak memory.
+Popups
+Popup charts share the same data repository.
 
-Phase 6 — Chart Rendering
-Optimize:
+Workbook changes
+Changes to the workbook cause appropriate cache invalidation.
 
-fitContent
-autoscaling
-redraws
-chart initialization
-unnecessary updates
-Deliverable: smoother chart updates.
+Correctness
+Chart output remains identical to the existing implementation for equivalent inputs.
 
-Phase 7 — RAM Optimization
-Analyze:
+Performance
+Performance improvements are demonstrated through measured results rather than assumptions.
 
-QWebEngine instances
-JavaScript data
-cached data
-DataFrames
-popup lifecycle
-hidden chart lifecycle
-Deliverable: stable RAM behavior under 8-chart workloads and repeated operations.
+Architecture
+Future performance optimizations can be implemented without redesigning chart/layout/data ownership.
 
-Phase 8 — Drawing Performance
-Only after the core data/crosshair/RAM architecture is stable.
+39. Explicit Non-Goals for Initial V2
+The following must NOT be implemented prematurely:
 
-Optimize:
+Replacing Pandas
+Replacing Excel
+Introducing a database
+Introducing Redis
+Introducing multiprocessing
+Introducing complex threading
+Rewriting the chart library
+Rewriting the entire UI
+Replacing JSON with binary transport
+Rewriting crosshair and data architecture simultaneously
+These may be considered later only if measurements justify them.
 
-drawing operations
-canvas updates
-mouse interaction
-redraw frequency
-object management
-Existing drawing behavior must remain unchanged.
+40. Final V2 Architecture
+The final conceptual architecture is:
 
-Phase 9 — Final Regression & V2 Freeze
-Run the complete test matrix.
+                         ┌─────────────────────┐
+                         │    Workbook.xlsx    │
+                         └──────────┬──────────┘
+                                    │
+                                    ▼
+                         ┌─────────────────────┐
+                         │   Excel Loader      │
+                         │                     │
+                         │ Source I/O only     │
+                         └──────────┬──────────┘
+                                    │
+                                    ▼
+                 ┌─────────────────────────────────┐
+                 │         Data Repository          │
+                 │                                 │
+                 │  Raw Contract Cache             │
+                 │  ───────────────────             │
+                 │  NIFTY                          │
+                 │  SENSEX                         │
+                 │  BANKNIFTY                      │
+                 │  ...                            │
+                 │                                 │
+                 │  Timeframe Cache                │
+                 │  ───────────────                │
+                 │  (contract, timeframe)          │
+                 │                                 │
+                 │  Lazy Loading                   │
+                 │  Cache Invalidation             │
+                 │  Workbook Change Detection      │
+                 └───────────────┬─────────────────┘
+                                 │
+                  ┌──────────────┼──────────────┐
+                  │              │              │
+                  ▼              ▼              ▼
+             ChartSlot 1    ChartSlot 2    ChartSlot 3
+                  │              │              │
+                  └──────────────┼──────────────┘
+                                 │
+                                 ▼
+                         Chart Data Layer
+                                 │
+                                 ▼
+                         JavaScript / WebView
+                                 │
+                                 ▼
+                            Chart Renderer
 
-Test:
 
-1 chart
-2 charts
-4 charts
-6 charts
-8 charts
-+
-popup
-+
-symbol changes
-+
-timeframe changes
-+
-crosshair
-+
-drawing
-+
-repeated operations
+       Separate subsystem:
 
-Once the performance targets are met:
+                         Crosshair Controller
+                                 │
+                ┌────────────────┼────────────────┐
+                ▼                ▼                ▼
+             Chart 1          Chart 2          Chart N
 
-V2 architecture is frozen.
+41. Final Architectural Decision
+The following decision is considered locked for V2:
 
-Future feature development must work within this architecture unless a separate architecture-change decision is made.
+The DataRepository is the authoritative owner of shared contract and timeframe data.
 
-24. Priority Order
-The development priority is fixed as:
+The repository is keyed by:
 
-P0  Baseline / instrumentation
- ↓
-P1  Crosshair
- ↓
-P2  Data loading
- ↓
-P3  Timeframe processing
- ↓
-P4  Python ↔ JavaScript transfer
- ↓
-P5  Chart rendering
- ↓
-P6  RAM
- ↓
-P7  Drawing
- ↓
-P8  Final regression
+Raw data:
+    contract
 
-RAM is monitored throughout every phase, not postponed until the end.
+Processed data:
+    (contract, timeframe)
 
-25. Definition of "Done"
-V2 is not considered complete because the code is "faster."
+Charts consume repository data.
 
-A task is complete only when:
+Charts do not independently load workbook sheets.
 
-functionality is preserved
-benchmark results improve
-RAM does not regress materially
-repeated operations remain stable
-8-chart operation remains functional
-no known regression is introduced
-the implementation fits this architecture
-26. Golden Rule
-The following rule governs all future development:
+Main dashboard charts and popup charts share the same repository.
 
-Do not rewrite the architecture to solve an individual performance problem. Improve the component responsible for that problem while preserving the V2 architecture.
+The repository uses lazy loading and cache invalidation based on workbook changes.
 
-Any proposed architectural change must first demonstrate that the existing architecture cannot reasonably solve the problem.
+Crosshair synchronization remains an independent subsystem.
 
-27. Current Next Task
-The immediate next development task is:
+Performance optimization proceeds from measured bottlenecks rather than speculative rewrites.
 
-PHASE 1 — PERFORMANCE BASELINE & INSTRUMENTATION
-No major optimization should be implemented before this baseline exists.
-
-The first implementation should therefore add measurement only.
-
-After the baseline is recorded, we proceed to Phase 2 — Crosshair Engine Optimization.
-
-This should serve as our master V2 requirements document. From this point onward, I would treat the architecture above as frozen and make each optimization against it, rather than redesigning the system every time we encounter a bottleneck.
-
-Next task: Phase 1 — build the baseline instrumentation and define the exact benchmark/test matrix.
+This architecture is the foundation for subsequent V2 development and should not require another architectural rewrite when additional contracts, layouts, timeframes, popups, or performance optimizations are added.
