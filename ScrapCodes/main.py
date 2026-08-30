@@ -1044,6 +1044,8 @@ class ChartSlot:
         time,
         price
     ):
+        print(f"[CROSSHAIR PYTHON] time={time} price={price}")
+
         if not self.chart_ready:
             return
 
@@ -1155,13 +1157,22 @@ class ChartSlot:
         self,
         ok
     ):
+        self.chart_ready = bool(ok)
 
-        self.chart_ready = bool(
-            ok
+        print(
+            f"[CHART LOAD] slot={self.slot_id + 1} ok={ok}"
         )
 
         if not ok:
             return
+
+        self.browser.page().runJavaScript(
+            "typeof setChartData",
+            lambda result: print(
+                f"[CHART JS READY] slot={self.slot_id + 1} "
+                f"setChartData={result}"
+            )
+        )
 
         self.parent.refresh_slot(
             self.slot_id
