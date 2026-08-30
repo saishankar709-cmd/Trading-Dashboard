@@ -322,7 +322,7 @@ const TOOL_NAMES = {
 
 
 function resizeDrawingCanvas() {
-
+   
     const width =
         chartContainer.clientWidth;
 
@@ -3391,10 +3391,36 @@ function setChartData(
      * Drawings are stored in market coordinates.
      */
 
+    console.log(
+        "[DEBUG] FIRST CANDLE",
+        JSON.stringify(data[0])
+    );
+
+    console.log(
+        "[DEBUG] LAST CANDLE",
+        JSON.stringify(data[data.length - 1])
+    );
+
+    console.log(
+        "[DEBUG] SERIES TYPE",
+        typeof candleSeries,
+        candleSeries
+    );
+
     candleSeries.setData(
         data
     );
 
+    console.log(
+        "[DEBUG] setData COMPLETE"
+    );
+
+    console.log(
+        "[DEBUG] VISIBLE RANGE",
+        JSON.stringify(
+            chart.timeScale().getVisibleLogicalRange()
+        )
+    );
 
     chart.priceScale(
         "right"
