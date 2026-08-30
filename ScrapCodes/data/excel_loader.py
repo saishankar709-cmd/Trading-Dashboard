@@ -1,4 +1,4 @@
-from src.performance_monitor import perf
+from performance_monitor import perf
 from pathlib import Path
 
 import pandas as pd
@@ -11,13 +11,20 @@ def load_sheet(file_path: str | Path, sheet_name: str) -> pd.DataFrame:
     Returns a DataFrame sorted chronologically with:
     timestamp, open, high, low, close, volume
     """
+    #
 
     file_path = Path(file_path)
 
-    df = pd.read_excel(
-        file_path,
-        sheet_name=sheet_name,
-    )
+    with perf.measure(
+        "excel.read",
+        extra={
+            "sheet": sheet_name,
+        },
+    ):
+        df = pd.read_excel(
+            file_path,
+            sheet_name=sheet_name,
+        )
 
     required_columns = [
         "Date",
@@ -67,4 +74,15 @@ def load_sheet(file_path: str | Path, sheet_name: str) -> pd.DataFrame:
     if "Volume" in df.columns:
         columns.append("Volume")
 
-    return df[columns]
+    result = df[columns]
+
+    perf.mark(
+        "excel.load.complete",
+        extra={
+            "sheet": sheet_name,
+            "rows": len(result),
+            "columns": len(result.columns),
+        },
+    )
+
+    return result
