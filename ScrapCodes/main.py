@@ -351,6 +351,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWebEngineCore import QWebEnginePage
 from data.excel_loader import load_sheet
 from data.data_repository import DataRepository
 from performance_monitor import perf
@@ -392,6 +393,20 @@ class ChartBridge(QObject):
 # =========================================================
 # CLICKABLE / MOUSE-AWARE CHART
 # =========================================================
+class DebugWebEnginePage(QWebEnginePage):
+
+    def javaScriptConsoleMessage(
+        self,
+        level,
+        message,
+        lineNumber,
+        sourceID
+    ):
+        print(
+            f"[JS] {message} "
+            f"(line {lineNumber}, source={sourceID})"
+        )
+
 class ClickableChartView(QWebEngineView):
 
     print("[TEST] ClickableChartView class loaded")
@@ -414,6 +429,8 @@ class ClickableChartView(QWebEngineView):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        self.setPage(DebugWebEnginePage(self))
 
         self.setMouseTracking(True)
 
@@ -4814,3 +4831,8 @@ def main():
 if __name__ == "__main__":
 
     main()
+
+
+
+
+
