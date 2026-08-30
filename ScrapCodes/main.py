@@ -352,6 +352,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from data.excel_loader import load_sheet
+from data.data_repository import DataRepository
 from performance_monitor import perf
 
 
@@ -2543,6 +2544,8 @@ class TradingDashboard(
 
         self.current_file = None
 
+        self.data_repository = DataRepository()
+
         self.current_date = None
 
         self.panel_expanded = True
@@ -3324,6 +3327,10 @@ class TradingDashboard(
                 file_path
             )
 
+            self.data_repository.set_workbook(
+                file_path
+            )
+
             self.sheet_names = list(
                 excel_file.sheet_names
             )
@@ -3888,15 +3895,17 @@ class TradingDashboard(
         try:
 
             with perf.measure(
-                "refresh.excel_load",
+                "refresh.data_repository",
                 extra={
                     "slot": slot_id,
                     "sheet": slot.sheet,
+                    "timeframe": slot.timeframe,
                 },
             ):
-                chart_data = load_sheet(
-                    self.current_file,
-                    slot.sheet
+                chart_data = self.data_repository.get_timeframe(
+                    slot.sheet,
+                    slot.timeframe,
+                    self.prepare_timeframe,
                 )
 
         except ValueError:
@@ -3923,29 +3932,8 @@ class TradingDashboard(
         # -------------------------------------------------
         # TIMEFRAME
         # -------------------------------------------------
-
-        with perf.measure(
-            "refresh.timeframe",
-            extra={
-                "slot": slot_id,
-                "timeframe": slot.timeframe,
-                "input_rows": len(chart_data),
-            },
-        ):
-            with perf.measure(
-                "refresh.timeframe",
-                extra={
-                    "slot": slot_id + 1,
-                    "timeframe": slot.timeframe,
-                    "input_rows": len(chart_data),
-                },
-            ):
-                chart_data = (
-                    self.prepare_timeframe(
-                        chart_data,
-                        slot.timeframe
-                    )
-                )
+        # Timeframe preparation is now owned by DataRepository.
+        # The repository returns cached/prepared data here.
 
 
         candles = []
