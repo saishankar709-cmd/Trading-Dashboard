@@ -2251,10 +2251,18 @@ class PopupChartWindow(QMainWindow):
 
         try:
 
-            chart_data = load_sheet(
-                self.dashboard.current_file,
-                slot.sheet
-            )
+            with perf.measure(
+                "refresh.excel_load",
+                extra={
+                    "slot": slot_id + 1,
+                    "sheet": slot.sheet,
+                },
+            ):
+                chart_data = load_sheet(
+                    self.current_file,
+                    slot.sheet
+                )
+
 
         except Exception as exc:
 
@@ -2294,59 +2302,66 @@ class PopupChartWindow(QMainWindow):
 
         candles = []
 
-        for _, row in (
-            chart_data.iterrows()
+        with perf.measure(
+            "refresh.candle_build",
+            extra={
+                "slot": slot_id + 1,
+                "rows": len(chart_data),
+            },
         ):
-
-            try:
-
-                timestamp = int(
-                    row[
-                        "timestamp"
-                    ].timestamp()
-                )
-
-                open_price = float(
-                    row["Open"]
-                )
-
-                high_price = float(
-                    row["High"]
-                )
-
-                low_price = float(
-                    row["Low"]
-                )
-
-                close_price = float(
-                    row["Close"]
-                )
-
-            except Exception:
-
-                continue
-
-            if not all(
-                math.isfinite(value)
-                for value in (
-                    open_price,
-                    high_price,
-                    low_price,
-                    close_price
-                )
+            for _, row in (
+                chart_data.iterrows()
             ):
 
-                continue
+                try:
 
-            candles.append(
-                {
-                    "time": timestamp,
-                    "open": open_price,
-                    "high": high_price,
-                    "low": low_price,
-                    "close": close_price,
-                }
-            )
+                    timestamp = int(
+                        row[
+                            "timestamp"
+                        ].timestamp()
+                    )
+
+                    open_price = float(
+                        row["Open"]
+                    )
+
+                    high_price = float(
+                        row["High"]
+                    )
+
+                    low_price = float(
+                        row["Low"]
+                    )
+
+                    close_price = float(
+                        row["Close"]
+                    )
+
+                except Exception:
+
+                    continue
+
+                if not all(
+                    math.isfinite(value)
+                    for value in (
+                        open_price,
+                        high_price,
+                        low_price,
+                        close_price
+                    )
+                ):
+
+                    continue
+
+                candles.append(
+                    {
+                        "time": timestamp,
+                        "open": open_price,
+                        "high": high_price,
+                        "low": low_price,
+                        "close": close_price,
+                    }
+                )
 
         if not candles:
 
@@ -2371,9 +2386,17 @@ class PopupChartWindow(QMainWindow):
             )
 
 
-        slot.browser.page().runJavaScript(
-            javascript
-        )
+        with perf.measure(
+            "refresh.js_submit",
+            extra={
+                "slot": slot_id + 1 if isinstance(slot_id, int) else slot_id,
+                "candles": len(candles),
+                "payload_bytes": len(javascript),
+            },
+        ):
+            slot.browser.page().runJavaScript(
+                javascript
+            )
 
         slot.update_header()
 
@@ -3909,12 +3932,21 @@ class TradingDashboard(
                 "input_rows": len(chart_data),
             },
         ):
-            chart_data = (
-                self.prepare_timeframe(
-                    chart_data,
-                    slot.timeframe
+            with perf.measure(
+                "refresh.timeframe",
+                extra={
+                    "slot": slot_id + 1,
+                    "timeframe": slot.timeframe,
+                    "input_rows": len(chart_data),
+                },
+            ):
+                chart_data = (
+                    self.prepare_timeframe(
+                        chart_data,
+                        slot.timeframe
+                    )
                 )
-            )
+
 
         candles = []
 
@@ -3996,16 +4028,32 @@ class TradingDashboard(
 
         slot.update_header()
 
-        javascript = (
-            "setChartData("
-            f"{json.dumps(candles)},"
-            f"{json.dumps(slot.sheet)}"
-            ");"
-        )
+        with perf.measure(
+            "refresh.json_serialize",
+            extra={
+                "slot": slot_id + 1,
+                "candles": len(candles),
+            },
+        ):
+            javascript = (
+                "setChartData("
+                f"{json.dumps(candles)},"
+                f"{json.dumps(slot.sheet)}"
+                ");"
+            )
 
-        slot.browser.page().runJavaScript(
-            javascript
-        )
+
+        with perf.measure(
+            "refresh.js_submit",
+            extra={
+                "slot": slot_id + 1 if isinstance(slot_id, int) else slot_id,
+                "candles": len(candles),
+                "payload_bytes": len(javascript),
+            },
+        ):
+            slot.browser.page().runJavaScript(
+                javascript
+            )
 
         if slot_id == (
             self.active_slot_id
