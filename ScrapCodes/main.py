@@ -2314,10 +2314,9 @@ class PopupChartWindow(QMainWindow):
                 },
             ):
                 chart_data = load_sheet(
-                    self.current_file,
+                    self.dashboard.current_file,
                     slot.sheet
                 )
-
 
         except Exception as exc:
 
