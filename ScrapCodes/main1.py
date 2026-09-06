@@ -357,7 +357,7 @@ from PySide6.QtWebEngineCore import QWebEnginePage
 from data.excel_loader import load_sheet
 from data.data_repository import DataRepository
 from performance_monitor import perf
-
+from PySide6.QtCore import QTimer
 
 # =========================================================
 # CONFIGURATION
@@ -3754,12 +3754,27 @@ class TradingDashboard(
         source,
         time
     ):
+        """
+        Synchronize crosshair from either the main dashboard
+        or a popup window.
+
+        IMPORTANT:
+        This version intentionally preserves the existing
+        routing behavior.
+
+        The only addition is performance measurement.
+        """
+
+        # =====================================================
+        # VALIDATE TIME
+        # =====================================================
 
         if time is None:
             return
 
         try:
             time = float(time)
+
         except (
             TypeError,
             ValueError
@@ -3771,10 +3786,9 @@ class TradingDashboard(
         ):
             return
 
-        # -------------------------------------------------
-        # -------------------------------------------------
+        # =====================================================
         # SOURCE SYNC STATE
-        # -------------------------------------------------
+        # =====================================================
 
         if isinstance(
             source,
@@ -3789,7 +3803,8 @@ class TradingDashboard(
             ChartSlot
         ):
 
-            # Main is the source.
+            # Main dashboard is the source.
+
             if not self.sync_enabled:
                 return
 
@@ -3805,9 +3820,11 @@ class TradingDashboard(
                 return
 
         else:
-
             return
 
+        # =====================================================
+        # BUILD JAVASCRIPT ONCE
+        # =====================================================
 
         javascript = (
             "syncCrosshairFromPython("
@@ -3815,74 +3832,120 @@ class TradingDashboard(
             ");"
         )
 
+        # =====================================================
+        # PERFORMANCE COUNTERS
+        # =====================================================
 
-        # =================================================
-        # MAIN WINDOW CHARTS
-        # =================================================
+        main_targets = 0
+        popup_targets = 0
 
-        # MAIN must also be enabled as a TARGET.
-        if self.sync_enabled and self.layout_sync_enabled.get(
-            self.current_layout,
-            True
+        # =====================================================
+        # MEASURE COMPLETE ROUTING
+        # =====================================================
+
+        with perf.measure(
+            "crosshair.sync_crosshair",
+            extra={
+                "source_type": type(source).__name__,
+                "time": time,
+            },
         ):
 
-            for slot_id in (
-                self.visible_slot_ids()
+            # ================================================
+            # MAIN WINDOW CHARTS
+            # ================================================
+
+            if (
+                self.sync_enabled
+                and
+                self.layout_sync_enabled.get(
+                    self.current_layout,
+                    True
+                )
             ):
 
-                slot = self.chart_slots[
-                    slot_id
-                ]
-
-                if (
-                    isinstance(
-                        source,
-                        ChartSlot
-                    )
-                    and
-                    slot.slot_id
-                    ==
-                    source.slot_id
+                for slot_id in (
+                    self.visible_slot_ids()
                 ):
+
+                    slot = self.chart_slots[
+                        slot_id
+                    ]
+
+                    # Do not update the source chart.
+                    if (
+                        isinstance(
+                            source,
+                            ChartSlot
+                        )
+                        and
+                        slot.slot_id
+                        ==
+                        source.slot_id
+                    ):
+                        continue
+
+                    if not slot.chart_ready:
+                        continue
+
+                    slot.browser.page().runJavaScript(
+                        javascript
+                    )
+
+                    main_targets += 1
+
+            # ================================================
+            # POPUP WINDOWS
+            # ================================================
+
+            for popup in list(
+                self.popup_windows
+            ):
+
+                if popup is source:
                     continue
 
-                if not slot.chart_ready:
+                if popup.closing:
                     continue
 
-                slot.browser.page().runJavaScript(
-                    javascript
-                )
-
-
-        # =================================================
-        # POPUPS
-        # =================================================
-
-        for popup in list(
-            self.popup_windows
-        ):
-
-            if popup is source:
-                continue
-
-            if popup.closing:
-                continue
-
-            if not popup.sync_enabled:
-                continue
-
-            for slot_id in popup.visible_slot_ids():
-
-                slot = popup.chart_slots[
-                    slot_id
-                ]
-
-                if not slot.chart_ready:
+                if not popup.sync_enabled:
                     continue
 
-                slot.browser.page().runJavaScript(
-                    javascript
-                )
+                for slot_id in (
+                    popup.visible_slot_ids()
+                ):
+
+                    slot = popup.chart_slots[
+                        slot_id
+                    ]
+
+                    if not slot.chart_ready:
+                        continue
+
+                    slot.browser.page().runJavaScript(
+                        javascript
+                    )
+
+                    popup_targets += 1
+
+        # =====================================================
+        # SUMMARY MARKER
+        # =====================================================
+
+        total_targets = (
+            main_targets
+            +
+            popup_targets
+        )
+
+        print(
+            "[CROSSHAIR ROUTE] "
+            f"source={type(source).__name__} "
+            f"main_targets={main_targets} "
+            f"popup_targets={popup_targets} "
+            f"total_targets={total_targets}",
+            flush=True
+        )
 
     # =====================================================
     # CLEAR SYNCHRONIZED CROSSHAIR
