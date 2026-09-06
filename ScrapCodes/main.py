@@ -1027,29 +1027,33 @@ class ChartSlot:
         x,
         y
     ):
-        if not self.chart_ready:
-            return
+        """
+        Crosshair movement is handled by the
+        Lightweight Charts crosshairMove event.
 
-        # -------------------------------------------------
-        # DO NOT EVEN ASK JAVASCRIPT FOR CROSSHAIR POSITION
-        # WHEN THIS WINDOW'S MOUSE SYNC IS OFF.
-        # -------------------------------------------------
+        Do not call JavaScript from the Qt mouseMoveEvent.
 
-        if not self.parent.sync_enabled:
-            return
+        The previous implementation performed:
 
-        javascript = (
-            "getCrosshairMarketPosition("
-            f"{int(x)},"
-            f"{int(y)}"
-            ");"
-        )
+            Qt mouseMove
+                ↓
+            Python
+                ↓
+            JavaScript
+                ↓
+            Python callback
 
-        self.browser.page().runJavaScript(
-            javascript,
-            self._crosshair_result
-        )
+        on every mouse movement.
 
+        That creates an unnecessary high-frequency
+        Python <-> JavaScript round trip.
+
+        The Lightweight Charts JavaScript event already
+        provides the logical candle time, so this Qt
+        mouse handler no longer needs to do anything.
+        """
+
+        return
     # =====================================================
     # JAVASCRIPT CROSSHAIR MOVED
     # =====================================================
