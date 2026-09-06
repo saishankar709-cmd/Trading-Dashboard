@@ -2164,80 +2164,108 @@ class PopupChartWindow(QMainWindow):
     # CROSSHAIR
     # =====================================================
 
-        def sync_crosshair(
-            self,
-            slot_id,
-            time
+    def sync_crosshair(
+        self,
+        slot_id,
+        time
+    ):
+        """
+        Synchronize a crosshair originating from one chart
+        inside a popup.
+
+        There are TWO synchronization levels:
+
+        1. Charts inside this popup.
+        2. Main dashboard + other popup windows.
+
+        The source popup's own settings control whether
+        synchronization is allowed.
+        """
+
+        # =====================================================
+        # VALIDATE POPUP MASTER SYNC
+        # =====================================================
+
+        if not self.sync_enabled:
+            return
+
+        # =====================================================
+        # VALIDATE TIME
+        # =====================================================
+
+        try:
+            time = float(time)
+        except (
+            TypeError,
+            ValueError
         ):
+            return
 
-            # -------------------------------------------------
-            # POPUP MOUSE SYNC MASTER SWITCH
-            # -------------------------------------------------
-            if not self.sync_enabled:
-                return
+        if not math.isfinite(time):
+            return
 
-            # -------------------------------------------------
-            # INTERNAL POPUP LAYOUT SYNC
-            # -------------------------------------------------
-            if not self.layout_sync_enabled.get(
-                self.current_layout,
-                True
-            ):
-                return
+        # =====================================================
+        # INTERNAL POPUP SYNCHRONIZATION
+        # =====================================================
 
-            if slot_id not in (
+        #
+        # IMPORTANT:
+        #
+        # A popup layout is a group of charts.
+        #
+        # We synchronize the source chart with every OTHER
+        # visible chart in the current popup layout.
+        #
+
+        layout_sync = self.layout_sync_enabled.get(
+            self.current_layout,
+            True
+        )
+
+        if layout_sync:
+
+            visible_ids = (
                 self.visible_slot_ids()
-            ):
-                return
-
-            try:
-
-                time = float(
-                    time
-                )
-
-            except (
-                TypeError,
-                ValueError
-            ):
-
-                return
-
-            if not math.isfinite(
-                time
-            ):
-                return
-
-            javascript = (
-                "syncCrosshairFromPython("
-                f"{time}"
-                ");"
             )
 
-            for target_id in (
-                self.visible_slot_ids()
-            ):
+            if slot_id in visible_ids:
 
-                if target_id == slot_id:
-                    continue
-
-                target = self.chart_slots[
-                    target_id
-                ]
-
-                if not target.chart_ready:
-                    continue
-
-                target.browser.page().runJavaScript(
-                    javascript
+                javascript = (
+                    "syncCrosshairFromPython("
+                    f"{time}"
+                    ");"
                 )
 
-            # Sync this popup through the
-            # main dashboard sync manager.
-            self.dashboard.sync_crosshair(
-                self,
-                time
-            )
+                for target_id in visible_ids:
+
+                    if target_id == slot_id:
+                        continue
+
+                    target = self.chart_slots[
+                        target_id
+                    ]
+
+                    if not target.chart_ready:
+                        continue
+
+                    target.browser.page().runJavaScript(
+                        javascript
+                    )
+
+        # =====================================================
+        # MAIN DASHBOARD + OTHER POPUPS
+        # =====================================================
+
+        #
+        # Do NOT stop here after the popup-local sync.
+        #
+        # The dashboard is the global router.
+        #
+
+        self.dashboard.sync_crosshair(
+            self,
+            time
+        )
 
     # =====================================================
     # CLEAR CROSSHAIR
