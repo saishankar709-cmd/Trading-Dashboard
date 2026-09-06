@@ -3914,7 +3914,7 @@ class TradingDashboard(
                     slot.browser.page().runJavaScript(
                         javascript
                     )
-
+                    
                     main_targets += 1
 
             # ================================================
