@@ -430,8 +430,6 @@ class ClickableChartView(QWebEngineView):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self.setPage(DebugWebEnginePage(self))
-
         self.setMouseTracking(True)
 
     def mousePressEvent(self, event):
@@ -1060,9 +1058,7 @@ class ChartSlot:
         self,
         time,
         price
-    ):
-        print(f"[CROSSHAIR PYTHON] time={time} price={price}")
-
+    ):        
         if not self.chart_ready:
             return
 
@@ -4826,8 +4822,3 @@ def main():
 if __name__ == "__main__":
 
     main()
-
-
-
-
-
