@@ -309,7 +309,7 @@ import json
 import sys
 from pathlib import Path
 
-import time
+import time as time_module
 
 import pandas as pd
 
@@ -357,7 +357,6 @@ from PySide6.QtWebEngineCore import QWebEnginePage
 from data.excel_loader import load_sheet
 from data.data_repository import DataRepository
 from performance_monitor import perf
-from PySide6.QtCore import QTimer
 
 # =========================================================
 # CONFIGURATION
@@ -3758,16 +3757,46 @@ class TradingDashboard(
         Synchronize crosshair from either the main dashboard
         or a popup window.
 
-        IMPORTANT:
-        This version intentionally preserves the existing
-        routing behavior.
-
-        The only addition is performance measurement.
+        This version preserves the working routing behaviour
+        and measures the Python routing cost.
         """
 
         # =====================================================
         # VALIDATE TIME
         # =====================================================
+
+        # =====================================================
+        # CROSSHAIR EVENT RATE MEASUREMENT
+        # =====================================================
+
+        now = time_module.perf_counter()
+
+        if not hasattr(
+            self,
+            "_crosshair_event_count"
+        ):
+            self._crosshair_event_count = 0
+            self._crosshair_event_start = now
+
+        self._crosshair_event_count += 1
+
+        elapsed = (
+            now
+            -
+            self._crosshair_event_start
+        )
+
+        if elapsed >= 1.0:
+
+            print(
+                "[CROSSHAIR RATE] "
+                f"events/sec="
+                f"{self._crosshair_event_count / elapsed:.1f}",
+                flush=True
+            )
+
+            self._crosshair_event_count = 0
+            self._crosshair_event_start = now
 
         if time is None:
             return
@@ -3781,9 +3810,7 @@ class TradingDashboard(
         ):
             return
 
-        if not math.isfinite(
-            time
-        ):
+        if not math.isfinite(time):
             return
 
         # =====================================================
@@ -3802,8 +3829,6 @@ class TradingDashboard(
             source,
             ChartSlot
         ):
-
-            # Main dashboard is the source.
 
             if not self.sync_enabled:
                 return
@@ -3832,10 +3857,6 @@ class TradingDashboard(
             ");"
         )
 
-        # =====================================================
-        # PERFORMANCE COUNTERS
-        # =====================================================
-
         main_targets = 0
         popup_targets = 0
 
@@ -3846,8 +3867,10 @@ class TradingDashboard(
         with perf.measure(
             "crosshair.sync_crosshair",
             extra={
-                "source_type": type(source).__name__,
-                "time": time,
+                "source_type":
+                    type(source).__name__,
+                "time":
+                    time,
             },
         ):
 
@@ -3929,7 +3952,7 @@ class TradingDashboard(
                     popup_targets += 1
 
         # =====================================================
-        # SUMMARY MARKER
+        # ROUTING DEBUG
         # =====================================================
 
         total_targets = (
@@ -3940,10 +3963,14 @@ class TradingDashboard(
 
         print(
             "[CROSSHAIR ROUTE] "
-            f"source={type(source).__name__} "
-            f"main_targets={main_targets} "
-            f"popup_targets={popup_targets} "
-            f"total_targets={total_targets}",
+            f"source="
+            f"{type(source).__name__} "
+            f"main_targets="
+            f"{main_targets} "
+            f"popup_targets="
+            f"{popup_targets} "
+            f"total_targets="
+            f"{total_targets}",
             flush=True
         )
 
